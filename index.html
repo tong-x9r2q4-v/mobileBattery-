@@ -3,125 +3,244 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>位置情報・近接時刻同期認証</title>
+  <title>超音波サインイン認証</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: #0f172a;
+      background-color: #0b0f19;
       color: #ffffff;
-      font-family: sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       min-height: 100vh;
-      margin: 0;
+      overflow: hidden;
+    }
+
+    .container {
+      background: #111827;
+      border: 1px solid #1f2937;
+      padding: 2.5rem 2rem;
+      border-radius: 1.5rem;
+      width: 90%;
+      max-width: 380px;
       text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      position: relative;
     }
-    .card {
-      background: #1e293b;
-      padding: 2rem;
-      border-radius: 1rem;
-      width: 85%;
-      max-width: 400px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+
+    h1 {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      color: #f3f4f6;
+      letter-spacing: 0.05em;
     }
-    button {
+
+    p {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      margin-bottom: 2rem;
+    }
+
+    /* アニメーション用チェックマーク */
+    .success-mark {
+      display: none;
+      width: 100px;
+      height: 100px;
+      margin: 1rem auto 2rem;
+    }
+
+    .checkmark-circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 3;
+      stroke-miterlimit: 10;
+      stroke: #10b981;
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark-check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      stroke-width: 4;
+      stroke: #10b981;
+      fill: none;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    }
+
+    @keyframes stroke {
+      100% { stroke-dashoffset: 0; }
+    }
+
+    /* パルス波形演出 */
+    .pulse-box {
+      width: 100px;
+      height: 100px;
+      margin: 1rem auto 2rem;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid #3b82f6;
+      animation: pulse 2s infinite ease-out;
+      opacity: 0;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.8); opacity: 0.8; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    .status-text {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #3b82f6;
+      min-height: 1.5em;
+    }
+
+    /* ボタンデザイン */
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 0.75rem;
+    }
+
+    .btn-primary {
       background: #3b82f6;
       color: white;
-      border: none;
-      padding: 1.2rem;
-      font-size: 1.2rem;
-      font-weight: bold;
-      border-radius: 0.5rem;
-      width: 100%;
-      cursor: pointer;
-      margin-top: 1rem;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
     }
-    button:active { background: #1d4ed8; }
-    #status { margin-top: 1.5rem; font-size: 0.9rem; color: #94a3b8; }
-    .success { color: #4ade80 !important; font-size: 1.2rem; font-weight: bold; }
+    .btn-primary:active { transform: scale(0.98); background: #2563eb; }
+
+    .btn-secondary {
+      background: #1f2937;
+      color: #d1d5db;
+      border: 1px solid #374151;
+    }
+    .btn-secondary:active { transform: scale(0.98); background: #374151; }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>📍 同時タップ認証</h2>
-    <p>せーので同時にボタンを押してください</p>
+  <div class="container">
+    <h1>🔊 近接サウンド認証</h1>
+    <p>端末を近づけて音波で認証します</p>
 
-    <button id="syncBtn" onclick="triggerSync()">せーのでタップ！</button>
+    <!-- 待機中の波形アニメーション -->
+    <div class="pulse-box" id="pulseBox">
+      <div class="pulse-ring"></div>
+      <span style="font-size: 2.5rem;">🎙️</span>
+    </div>
 
-    <div id="status">待機中...</div>
+    <!-- 成功時のチェックマークSVG -->
+    <svg class="success-mark" id="successMark" viewBox="0 0 52 52">
+      <circle class="checkmark-circle" cx="26" cy="26" r="23"/>
+      <path class="checkmark-check" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+    </svg>
+
+    <div class="status-text" id="status">待機中</div>
+
+    <button class="btn btn-primary" onclick="startListening()">受信側（マイクで聴く）</button>
+    <button class="btn btn-secondary" onclick="emitSound()">送信側（音波を出す）</button>
   </div>
 
   <script>
-    // ハバーサイン公式：2つの緯度経度から距離(m)を算出
-    function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // 地球の半径 (m)
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c; 
+    const FREQUENCY = 18500; // 超音波領域に近い18.5kHz
+    let audioCtx = null;
+
+    // --- 送信側：音波（高周波）を出力 ---
+    function emitSound() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(FREQUENCY, audioCtx.currentTime); // 18.5kHz
+      
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8); // 0.8秒間鳴らす
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.8);
+
+      document.getElementById('status').innerText = "🔊 音波送信中...";
+      document.getElementById('status').style.color = "#3b82f6";
     }
 
-    function triggerSync() {
+    // --- 受信側：マイクで指定周波数を検知 ---
+    async function startListening() {
       const statusEl = document.getElementById('status');
-      statusEl.innerText = "位置情報を取得中...";
+      statusEl.innerText = "🎧 信号を検出中...";
+      statusEl.style.color = "#eab308";
 
-      if (!navigator.geolocation) {
-        statusEl.innerText = "お使いのブラウザは位置情報に対応していません";
-        return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        // 特定の周波数（18.5kHz）のインデックスを計算
+        const nyquist = audioCtx.sampleRate / 2;
+        const targetIndex = Math.round((FREQUENCY / nyquist) * bufferLength);
+
+        function checkAudio() {
+          analyser.getByteFrequencyData(dataArray);
+          const targetVolume = dataArray[targetIndex];
+
+          // しきい値（音量）を超えたら認証成功
+          if (targetVolume > 100) { 
+            showSuccess();
+            stream.getTracks().forEach(track => track.stop()); // マイク停止
+            return;
+          }
+          requestAnimationFrame(checkAudio);
+        }
+
+        checkAudio();
+
+      } catch (err) {
+        statusEl.innerText = "マイクの使用許可が必要です";
+        statusEl.style.color = "#ef4444";
       }
-
-      // 高精度で位置情報を取得
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const payload = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            timestamp: Date.now() // タップした瞬間のミリ秒
-          };
-
-          statusEl.innerText = `データ生成完了!\n時刻: ${payload.timestamp}\n(サーバーへ送信中...)`;
-
-          // ※ 本来はここで Firebase や GAS 等の backend に payload を送信します
-          // 以下は2台のデータが揃ったと仮定した照合ロジックのサンプルです
-          simulateServerVerification(payload);
-        },
-        (error) => {
-          statusEl.innerText = "位置情報の取得に失敗しました: " + error.message;
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
     }
 
-    // サーバー側で行う照合判定のシミュレーション関数
-    function simulateServerVerification(deviceA) {
-      // 例: もう1台(Device B)の疑似データ（距離約3m、差分300ミリ秒）
-      const deviceB = {
-        latitude: deviceA.latitude + 0.00003,
-        longitude: deviceA.longitude + 0.00003,
-        timestamp: deviceA.timestamp + 300 
-      };
-
-      const distance = getDistanceInMeters(
-        deviceA.latitude, deviceA.longitude,
-        deviceB.latitude, deviceB.longitude
-      );
-      const timeDiff = Math.abs(deviceA.timestamp - deviceB.timestamp);
+    // 認証成功時の演出
+    function showSuccess() {
+      document.getElementById('pulseBox').style.display = 'none';
+      const mark = document.getElementById('successMark');
+      mark.style.display = 'block';
 
       const statusEl = document.getElementById('status');
-
-      // 条件: 距離 20m 以内 & 時間差 1000ms(1秒) 以内
-      if (distance <= 20 && timeDiff <= 1000) {
-        statusEl.className = "success";
-        statusEl.innerText = `🔓 認証成功！\n距離: ${distance.toFixed(1)}m / 時間差: ${timeDiff}ms`;
-      } else {
-        statusEl.innerText = `❌ 認証失敗\n距離: ${distance.toFixed(1)}m / 時間差: ${timeDiff}ms`;
-      }
+      statusEl.innerText = "認証成功！サインイン完了";
+      statusEl.style.color = "#10b981";
     }
   </script>
 </body>
