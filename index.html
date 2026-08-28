@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かざしてP2P接続システム</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0f172a;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .card {
+      background: #1e293b;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      width: 90%;
+      max-width: 400px;
+    }
+    h2 { margin-bottom: 1rem; font-size: 1.4rem; }
+    .btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    .btn-success { background: #22c55e; }
+    #qrcode { display: flex; justify-content: center; margin: 1rem 0; background: white; padding: 10px; border-radius: 8px; }
+    #reader { width: 100%; margin-top: 1rem; }
+    
+    /* ローディング（接続中）アニメーション */
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      border-left-color: #3b82f6;
+      animation: spin 1s linear infinite;
+      margin: 1.5rem auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* 確認コード表示 */
+    .code-box {
+      font-size: 2.5rem;
+      font-weight: bold;
+      letter-spacing: 0.3rem;
+      color: #38bdf8;
+      background: #0f172a;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    /* チェックマークアニメーション */
+    .checkmark-svg {
+      width: 80px; height: 80px;
+      margin: 1rem auto;
+      stroke: #22c55e; stroke-width: 3; stroke-miterlimit: 10;
+      animation: scale .3s ease-in-out forwards;
+    }
+    .checkmark-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: stroke 0.6s forwards; }
+    .checkmark-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s 0.6s forwards; }
+    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+    @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div id="step-init">
+      <h2>P2P かざして接続</h2>
+      <p style="font-size: 0.9rem; color: #94a3b8;">デスクトップでQRを表示し、スマホでスキャンしてください</p>
+      <div id="qrcode"></div>
+      <p style="font-size: 0.8rem; color: #64748b;">ID: <span id="my-peer-id">発行中...</span></p>
+      <button class="btn" onclick="startScanner()">📷 スマホでQRを読み取る</button>
+      <div id="reader"></div>
+    </div>
+
+    <div id="step-connecting" style="display: none;">
+      <h2>接続中...</h2>
+      <div class="spinner"></div>
+      <p>P2P通信を確立しています</p>
+    </div>
+
+    <div id="step-verify" style="display: none;">
+      <h2>接続の確認</h2>
+      <p>両方の画面に同じコードが表示されていますか？</p>
+      <div class="code-box" id="display-code">------</div>
+      <button class="btn btn-success" onclick="approveConnection()">信頼します</button>
+    </div>
+
+    <div id="step-success" style="display: none;">
+      <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+        <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none"/>
+        <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+      </svg>
+      <h2>接続完了</h2>
+      <p>安全なP2P通信が確立されました！</p>
+    </div>
+  </div>
+
+  <script>
+    let peer = null;
+    let conn = null;
+    let html5QrcodeScanner = null;
+    let confirmCode = "";
+
+    // 画面切り替えユーティリティ
+    function showStep(stepId) {
+      ['step-init', 'step-connecting', 'step-verify', 'step-success'].forEach(id => {
+        document.getElementById(id).style.display = (id === stepId) ? 'block' : 'none';
+      });
+    }
+
+    // ランダムな6桁の確認コードを生成
+    function generateCode() {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    // PeerJS (P2P) の初期化
+    peer = new Peer();
+
+    peer.on('open', (id) => {
+      document.getElementById('my-peer-id').innerText = id;
+      // デスクトップ側：QRコードを生成
+      new QRCode(document.getElementById("qrcode"), {
+        text: id,
+        width: 160,
+        height: 160
+      });
+    });
+
+    // 【デスクトップ側】スマホからの接続要求を受信
+    peer.on('connection', (incomingConn) => {
+      conn = incomingConn;
+      setupConnectionHandlers();
+      showStep('step-connecting');
+    });
+
+    // 【スマホ側】ボタンを押してカメラを起動
+    function startScanner() {
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner.render((targetPeerId) => {
+        // QRコードを読み取ったらカメラ停止
+        html5QrcodeScanner.clear();
+        document.getElementById('reader').remove();
+        
+        // P2P 接続要求を送信
+        showStep('step-connecting');
+        conn = peer.connect(targetPeerId);
+        setupConnectionHandlers();
+      });
+    }
+
+    // P2Pデータ受信ハンドラの設定
+    function setupConnectionHandlers() {
+      conn.on('open', () => {
+        // 接続が確立したら、確認コード生成（接続を開始した側が生成して共有）
+        if (!confirmCode) {
+          confirmCode = generateCode();
+          conn.send({ type: 'VERIFY_CODE', code: confirmCode });
+        }
+        showVerifyScreen(confirmCode);
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'VERIFY_CODE') {
+          confirmCode = data.code;
+          showVerifyScreen(confirmCode);
+        } else if (data.type === 'APPROVED') {
+          showStep('step-success');
+        }
+      });
+    }
+
+    // 確認コード画面の表示
+    function showVerifyScreen(code) {
+      document.getElementById('display-code').innerText = code;
+      showStep('step-verify');
+    }
+
+    // 「信頼します」ボタンを押したときの処理
+    function approveConnection() {
+      conn.send({ type: 'APPROVED' });
+      showStep('step-success');
+    }
+  </script>
+</body>
+</html>
