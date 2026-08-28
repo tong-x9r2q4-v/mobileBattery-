@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Transfer - オフライン高速データ転送</title>
+    <title>QR Stream Transfer with Preview</title>
     <!-- QRコード生成ライブラリ (CDN) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- QRコードカメラ読み取りライブラリ (CDN) -->
@@ -42,23 +42,14 @@
             gap: 20px;
         }
 
-        header {
-            text-align: center;
-        }
-
         header h1 {
             font-size: 1.8rem;
             margin: 0;
+            text-align: center;
             background: linear-gradient(135deg, #38bdf8, #818cf8);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-weight: 800;
-        }
-
-        header p {
-            color: var(--text-sub);
-            font-size: 0.85rem;
-            margin-top: 6px;
         }
 
         .card {
@@ -73,9 +64,6 @@
             font-size: 1.1rem;
             font-weight: 700;
             margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
         }
@@ -86,24 +74,11 @@
             padding: 24px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s;
             background: rgba(11, 15, 25, 0.5);
         }
 
         .drop-zone:hover {
             border-color: var(--accent);
-            box-shadow: 0 0 15px var(--accent-glow);
-        }
-
-        .drop-zone p {
-            margin: 0;
-            color: var(--text-sub);
-            font-size: 0.9rem;
-        }
-
-        .drop-zone .file-name {
-            color: var(--accent);
-            font-weight: 600;
         }
 
         .controls {
@@ -120,10 +95,6 @@
             justify-content: space-between;
         }
 
-        input[type="range"] {
-            width: 100%;
-        }
-
         .btn {
             width: 100%;
             padding: 12px;
@@ -135,40 +106,23 @@
             font-size: 1rem;
             cursor: pointer;
             margin-top: 14px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px var(--accent-glow);
-        }
-
-        .btn:hover {
-            filter: brightness(1.1);
-            transform: translateY(-1px);
         }
 
         .btn-danger {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             color: #fff;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
-        /* 視覚的ビジュアルエリア */
         .qr-display {
             background: #ffffff;
             border-radius: 12px;
             padding: 20px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
             margin-top: 16px;
-            min-height: 240px;
+            min-height: 220px;
         }
 
-        #qrcode canvas, #qrcode img {
-            display: block;
-            margin: 0 auto;
-        }
-
-        /* プログレスバーデザイン */
         .progress-wrapper {
             margin-top: 16px;
         }
@@ -197,7 +151,6 @@
             transition: width 0.1s linear;
         }
 
-        /* カメラリーダー表示枠 */
         #reader {
             width: 100%;
             border-radius: 12px;
@@ -206,21 +159,73 @@
             background: #000;
         }
 
-        .download-box {
+        /* 受信・プレビューエリア */
+        .result-box {
             margin-top: 16px;
             padding: 16px;
             background: rgba(16, 185, 129, 0.1);
             border: 1px solid var(--success);
-            border-radius: 10px;
-            text-align: center;
+            border-radius: 12px;
             display: none;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        .download-box a {
-            color: var(--success);
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: var(--success);
+            color: #000;
             font-weight: bold;
             text-decoration: none;
-            font-size: 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .preview-container {
+            width: 100%;
+            max-height: 350px;
+            overflow: auto;
+            background: #000;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .preview-container img, 
+        .preview-container video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 6px;
+        }
+
+        .preview-container audio {
+            width: 100%;
+        }
+
+        .preview-text {
+            width: 100%;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #fff;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 300px;
+            border: none;
         }
     </style>
 </head>
@@ -229,13 +234,11 @@
 <div class="container">
     <header>
         <h1>⚡ QR STREAM TRANSFER</h1>
-        <p>高速パラパラQRコード表示による完全オフライン転送システム</p>
     </header>
 
-    <!-- 1. 送信側 (QR作成) -->
+    <!-- 送信エリア -->
     <div class="card">
-        <div class="card-title">📤 1. データ送信 (連続QRコード表示)</div>
-        
+        <div class="card-title">📤 送信 (連続QRコード表示)[cite: 1]</div>
         <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
             <p id="fileNameDisplay">📂 クリックしてファイルを選択</p>
             <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
@@ -249,7 +252,7 @@
             <input type="range" id="fpsRange" min="1" max="25" value="10" oninput="document.getElementById('fpsVal').innerText = this.value + ' FPS'">
         </div>
 
-        <button class="btn" id="startTxBtn" onclick="startQRStream()">送信開始 (パラパラ漫画再生)[cite: 1]</button>
+        <button class="btn" id="startTxBtn" onclick="startQRStream()">送信開始[cite: 1]</button>
         <button class="btn btn-danger" id="stopTxBtn" onclick="stopQRStream()" style="display:none;">停止</button>
 
         <div class="progress-wrapper">
@@ -267,9 +270,9 @@
         </div>
     </div>
 
-    <!-- 2. 受信側 (カメラ読み取り) -->
+    <!-- 受信・プレビューエリア -->
     <div class="card">
-        <div class="card-title">📥 2. データ受信 (カメラ読み取り)[cite: 1]</div>
+        <div class="card-title">📥 受信 (スキャン＆プレビュー)[cite: 1]</div>
 
         <button class="btn" id="startRxBtn" onclick="startCamera()">カメラでスキャンを開始[cite: 1]</button>
         <button class="btn btn-danger" id="stopRxBtn" onclick="stopCamera()" style="display:none;">スキャン停止</button>
@@ -281,39 +284,43 @@
         <div class="progress-wrapper">
             <div class="progress-info">
                 <span id="rxStatus">スキャン停止中</span>
-                <span id="rxPercent">0 / 0 フレーム (0%)</span>
+                <span id="rxPercent">0 / 0 コマ (0%)</span>
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="rxProgressFill"></div>
             </div>
         </div>
 
-        <div class="download-box" id="downloadBox">
-            🎉 データ転送成功！<br>
-            <a id="downloadLink" href="#" download="">ファイルをダウンロード</a>
+        <!-- 結果表示・プレビュー要素 -->
+        <div class="result-box" id="resultBox">
+            <div class="result-header">
+                <span id="receivedFileName" style="font-weight: bold; color: var(--success);">受信完了</span>
+                <a id="downloadLink" class="download-btn" href="#" download="">保存する</a>
+            </div>
+            <!-- ここにファイルに応じたプレビューが読み込まれます -->
+            <div class="preview-container" id="previewContainer"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- グローバル変数 ---
     let selectedFile = null;
     let selectedBuffer = null;
     let qrChunks = [];
     let animationTimer = null;
     let currentFrame = 0;
-    const CHUNK_SIZE = 120; // QRコード1枚あたりのバイトサイズ (読み取り精度重視)
+    const CHUNK_SIZE = 120;
 
     let html5QrcodeScanner = null;
     let receivedChunks = {};
     let totalExpectedChunks = 0;
 
-    // --- 1. 送信側処理 ---
+    // 送信側ファイル読み込み
     function handleFileSelect(e) {
         const file = e.target.files[0];
         if (file) {
             selectedFile = file;
-            document.getElementById('fileNameDisplay').innerHTML = `<span class="file-name">📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>`;
+            document.getElementById('fileNameDisplay').innerHTML = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
             const reader = new FileReader();
             reader.onload = (evt) => {
                 selectedBuffer = new Uint8Array(evt.target.result);
@@ -322,9 +329,10 @@
         }
     }
 
+    // QR送信ループ
     function startQRStream() {
         if (!selectedBuffer) {
-            alert('送信するファイルを選択してください。');
+            alert('ファイルを選択してください。');
             return;
         }
 
@@ -332,7 +340,6 @@
         const totalChunks = Math.ceil(selectedBuffer.length / CHUNK_SIZE);
         qrChunks = [];
 
-        // パケット構成: [index]|[total]|[filename]|[dataBase64][cite: 1]
         for (let i = 0; i < totalChunks; i++) {
             const start = i * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, selectedBuffer.length);
@@ -354,8 +361,8 @@
         const qrcodeContainer = document.getElementById('qrcode');
         qrcodeContainer.innerHTML = '';
         const qr = new QRCode(qrcodeContainer, {
-            width: 200,
-            height: 200,
+            width: 180,
+            height: 180,
             correctLevel: QRCode.CorrectLevel.L
         });
 
@@ -369,7 +376,7 @@
             const pct = Math.floor(((currentFrame + 1) / totalChunks) * 100);
             document.getElementById('txProgressFill').style.width = pct + '%';
             document.getElementById('txPercent').innerText = pct + '%';
-            document.getElementById('txStatus').innerText = `再生中: ${currentFrame + 1} / ${totalChunks} コマ`;
+            document.getElementById('txStatus').innerText = `再生中: ${currentFrame + 1} / ${totalChunks}`;
 
             currentFrame = (currentFrame + 1) % totalChunks;
         }, intervalMs);
@@ -382,15 +389,14 @@
         document.getElementById('txStatus').innerText = '停止';
     }
 
-    // --- 2. 受信側処理 (カメラ読み取り＆結合) ---
+    // カメラ受信処理
     function startCamera() {
         receivedChunks = {};
         totalExpectedChunks = 0;
-        document.getElementById('downloadBox').style.display = 'none';
+        document.getElementById('resultBox').style.display = 'none';
 
         html5QrcodeScanner = new Html5Qrcode("reader");
-
-        const config = { fps: 30, qrbox: { width: 250, height: 250 } };
+        const config = { fps: 30, qrbox: { width: 220, height: 220 } };
 
         html5QrcodeScanner.start(
             { facingMode: "environment" },
@@ -399,15 +405,13 @@
         ).then(() => {
             document.getElementById('startRxBtn').style.display = 'none';
             document.getElementById('stopRxBtn').style.display = 'block';
-            document.getElementById('rxStatus').innerText = 'スキャン中... QRコードにかざしてください';
-        }).catch(err => {
-            alert("カメラの起動に失敗しました: " + err);
-        });
+            document.getElementById('rxStatus').innerText = 'スキャン中...';
+        }).catch(err => alert("カメラの起動に失敗しました: " + err));
     }
 
     function onScanSuccess(decodedText) {
         const parts = decodedText.split('|');
-        if (parts.length !== 4) return; // 定義外フォーマットは無視
+        if (parts.length !== 4) return;
 
         const index = parseInt(parts[0]);
         const total = parseInt(parts[1]);
@@ -416,29 +420,26 @@
 
         totalExpectedChunks = total;
 
-        // 重複なしで読み取りフレームを保存
         if (!receivedChunks[index]) {
             receivedChunks[index] = { fileName, base64Data };
-
             const currentCount = Object.keys(receivedChunks).length;
             const pct = Math.floor((currentCount / totalExpectedChunks) * 100);
 
             document.getElementById('rxProgressFill').style.width = pct + '%';
-            document.getElementById('rxPercent').innerText = `${currentCount} / ${totalExpectedChunks} コマ (${pct}%)`;
-            document.getElementById('rxStatus').innerText = `受信中: ${currentCount} コマ取得済み`;
+            document.getElementById('rxPercent').innerText = `${currentCount} / ${totalExpectedChunks} (${pct}%)`;
+            document.getElementById('rxStatus').innerText = `受信中...`;
 
-            // 全フレームの収集完了判定[cite: 1]
             if (currentCount === totalExpectedChunks) {
                 completeReception();
             }
         }
     }
 
+    // 受信完了・データ結合およびプレビュー生成
     function completeReception() {
         stopCamera();
-        document.getElementById('rxStatus').innerText = '🎉 全フレーム読み取り完了！データを合成中...';
+        document.getElementById('rxStatus').innerText = '🎉 受信完了！';
 
-        // 全パケットを順序通りに結合[cite: 1]
         let totalBytes = 0;
         let byteArrays = [];
         let fileName = receivedChunks[0].fileName;
@@ -455,7 +456,6 @@
             totalBytes += len;
         }
 
-        // 単一のBlobに統合
         const mergedArray = new Uint8Array(totalBytes);
         let offset = 0;
         for (let arr of byteArrays) {
@@ -463,15 +463,74 @@
             offset += arr.length;
         }
 
-        const blob = new Blob([mergedArray]);
+        // ファイル拡張子からMIMEタイプを判定
+        const ext = fileName.split('.').pop().toLowerCase();
+        const mimeType = getMimeType(ext);
+
+        const blob = new Blob([mergedArray], { type: mimeType });
         const url = URL.createObjectURL(blob);
 
+        // ダウンロードリンクの設定
         const dlLink = document.getElementById('downloadLink');
         dlLink.href = url;
         dlLink.download = fileName;
-        dlLink.innerText = `📄 『${fileName}』をダウンロード`;
 
-        document.getElementById('downloadBox').style.display = 'block';
+        document.getElementById('receivedFileName').innerText = `📄 ${fileName}`;
+
+        // プレビュー生成
+        renderPreview(blob, url, ext, mimeType);
+
+        document.getElementById('resultBox').style.display = 'flex';
+    }
+
+    // プレビューレンダリング関数
+    function renderPreview(blob, url, ext, mimeType) {
+        const container = document.getElementById('previewContainer');
+        container.innerHTML = '';
+
+        if (mimeType.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = url;
+            container.appendChild(img);
+        } else if (mimeType.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.src = url;
+            video.controls = true;
+            container.appendChild(video);
+        } else if (mimeType.startsWith('audio/')) {
+            const audio = document.createElement('audio');
+            audio.src = url;
+            audio.controls = true;
+            container.appendChild(audio);
+        } else if (mimeType === 'application/pdf') {
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.className = 'preview-iframe';
+            container.appendChild(iframe);
+        } else if (['txt', 'json', 'js', 'html', 'css', 'csv', 'md'].includes(ext)) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const p = document.createElement('pre');
+                p.className = 'preview-text';
+                p.textContent = e.target.result;
+                container.appendChild(p);
+            };
+            reader.readAsText(blob);
+        } else {
+            container.innerHTML = `<p style="color:var(--text-sub); font-size:0.85rem;">※このファイル形式の直接プレビューには対応していません。「保存する」ボタンから保存して開いてください。</p>`;
+        }
+    }
+
+    // 簡単なMIMEタイプ判別
+    function getMimeType(ext) {
+        const map = {
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
+            'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
+            'mp4': 'video/mp4', 'webm': 'video/webm',
+            'pdf': 'application/pdf',
+            'txt': 'text/plain', 'json': 'application/json', 'html': 'text/html'
+        };
+        return map[ext] || 'application/octet-stream';
     }
 
     function stopCamera() {
