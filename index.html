@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>かざしてP2P接続（相互承認版）</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <title>かざしてジェスチャー認証</title>
+  
+  <!-- MediaPipe Hands と 描画ライブラリの読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,15 +28,46 @@
       border-radius: 1rem;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
       width: 90%;
-      max-width: 400px;
+      max-width: 440px;
     }
-    h2 { margin-bottom: 1rem; font-size: 1.4rem; }
+    h2 { margin-bottom: 0.5rem; font-size: 1.4rem; }
     p { font-size: 0.9rem; color: #94a3b8; }
+
+    /* カメラ・描画キャンバスの重ね合わせ */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      height: 270px;
+      margin: 1.2rem auto;
+      border-radius: 0.8rem;
+      overflow: hidden;
+      background: #000;
+    }
+    video, canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    /* 鏡合わせ表示（自然な操作感のため） */
+    .mirror { transform: scaleX(-1); }
+
+    .target-pose {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #38bdf8;
+      background: #0f172a;
+      padding: 0.6rem;
+      border-radius: 0.5rem;
+      margin-top: 0.8rem;
+    }
+
     .btn {
       background: #3b82f6;
       color: white;
       border: none;
-      padding: 0.9rem 1.5rem;
+      padding: 0.8rem 1.5rem;
       font-size: 1rem;
       font-weight: bold;
       border-radius: 0.5rem;
@@ -42,48 +75,11 @@
       margin-top: 1rem;
       width: 100%;
     }
-    .btn-success { background: #22c55e; }
-    .btn:disabled { background: #475569; cursor: not-allowed; }
-    #qrcode { display: flex; justify-content: center; margin: 1rem 0; background: white; padding: 12px; border-radius: 8px; }
-    
-    #reader-wrapper {
-      width: 100%;
-      margin-top: 1rem;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #000;
-      display: none;
-    }
-    #reader { width: 100%; }
 
-    .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 0.8rem; display: none; }
-    
-    .spinner {
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      width: 50px; height: 50px;
-      border-radius: 50%;
-      border-left-color: #3b82f6;
-      animation: spin 1s linear infinite;
-      margin: 1.5rem auto;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    /* 共通確認コード表示 */
-    .code-box {
-      font-size: 2.5rem;
-      font-weight: bold;
-      letter-spacing: 0.3rem;
-      color: #38bdf8;
-      background: #0f172a;
-      padding: 0.6rem;
-      border-radius: 0.5rem;
-      margin: 1rem 0;
-    }
-
-    /* チェックマーク */
+    /* チェックマークアニメーション */
     .checkmark-svg {
       width: 80px; height: 80px;
-      margin: 1rem auto;
+      margin: 1.5rem auto;
       stroke: #22c55e; stroke-width: 3; stroke-miterlimit: 10;
       animation: scale .3s ease-in-out forwards;
     }
@@ -96,180 +92,131 @@
 <body>
 
   <div class="card">
-    <!-- ステップ 1: QR表示 / スキャン選択 -->
+    <!-- ステップ 1: カメラ起動ボタン ＆ 準備 -->
     <div id="step-init">
-      <h2>P2P かざして接続</h2>
-      <p>デスクトップでQRを表示し、スマホで読み取ってください</p>
+      <h2>ジェスチャーかざして認証</h2>
+      <p>指定されたポーズをカメラにかざしてログインします</p>
       
-      <div id="qrcode"></div>
-      <p style="font-size: 0.8rem; color: #64748b;">自端末ID: <span id="my-peer-id">取得中...</span></p>
-      
-      <button class="btn" id="start-cam-btn" onclick="startCameraScanner()">📷 スマホでQRを読み取る</button>
-      
-      <div id="reader-wrapper">
-        <div id="reader"></div>
+      <div class="target-pose">指定ポーズ: ✌️ ピース</div>
+      <button class="btn" onclick="startCamera()">📷 カメラを起動して認証開始</button>
+    </div>
+
+    <!-- ステップ 2: カメラ認識中 -->
+    <div id="step-active" style="display: none;">
+      <h2>手をカメラにかざしてください</h2>
+      <p id="pose-instruction">「✌️ ピース」を作ってください</p>
+
+      <div class="canvas-container">
+        <video id="input-video" class="mirror" playsinline></video>
+        <canvas id="output-canvas" class="mirror"></canvas>
       </div>
-      <p class="error-msg" id="cam-error"></p>
+
+      <p id="detect-status" style="color: #e2e8f0; font-weight: bold;">検出中...</p>
     </div>
 
-    <!-- ステップ 2: 接続中 -->
-    <div id="step-connecting" style="display: none;">
-      <h2>接続中...</h2>
-      <div class="spinner"></div>
-      <p>P2P通信を確立しています</p>
-    </div>
-
-    <!-- ステップ 3: 確認コード ＆ 相互信頼 -->
-    <div id="step-verify" style="display: none;">
-      <h2>接続コードの確認</h2>
-      <p>両方の端末に以下の<b>同じコード</b>が表示されているか確認してください</p>
-      
-      <div class="code-box" id="display-code">------</div>
-      
-      <button class="btn btn-success" id="approve-btn" onclick="approveConnection()">信頼します</button>
-      <p id="wait-status" style="margin-top: 1rem; color: #38bdf8; display: none;">相手の承認を待っています...</p>
-    </div>
-
-    <!-- ステップ 4: 相互承認完了（チェックマーク表示） -->
+    <!-- ステップ 3: 認証成功 -->
     <div id="step-success" style="display: none;">
       <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
         <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none"/>
         <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
       </svg>
-      <h2>接続完了</h2>
-      <p>両方の端末で信頼が確認されました！</p>
+      <h2>認証成功！</h2>
+      <p>サインが一致しました。ログイン完了です。</p>
     </div>
   </div>
 
   <script>
-    let peer = null;
-    let conn = null;
-    let html5QrCode = null;
+    const videoElement = document.getElementById('input-video');
+    const canvasElement = document.getElementById('output-canvas');
+    const canvasCtx = canvasElement.getContext('2d');
     
-    let confirmCode = "";
-    let isHost = false; // QRコードを表示した側（ホスト）かどうか
-    let myApproved = false; // 自分が承認したか
-    let peerApproved = false; // 相手が承認したか
+    let camera = null;
+    let isAuthenticated = false;
 
-    function showStep(stepId) {
-      ['step-init', 'step-connecting', 'step-verify', 'step-success'].forEach(id => {
-        document.getElementById(id).style.display = (id === stepId) ? 'block' : 'none';
-      });
-    }
-
-    function generateCode() {
-      return Math.floor(100000 + Math.random() * 900000).toString();
-    }
-
-    peer = new Peer();
-
-    peer.on('open', (id) => {
-      document.getElementById('my-peer-id').innerText = id;
-      new QRCode(document.getElementById("qrcode"), {
-        text: id,
-        width: 160,
-        height: 160
-      });
+    // MediaPipe Hands の初期化
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
 
-    // 【ホスト側（デスクトップ）】接続要求を受け取る
-    peer.on('connection', (incomingConn) => {
-      conn = incomingConn;
-      isHost = true;
-      
-      // ホスト側が一意の共通コードを生成
-      confirmCode = generateCode();
-      
-      showStep('step-connecting');
-      setupConnectionHandlers();
+    hands.setOptions({
+      maxNumHands: 1,           // 1つの手だけを認識
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
     });
 
-    // 【スキャン側（スマホ）】カメラ起動
-    async function startCameraScanner() {
-      document.getElementById('cam-error').style.display = 'none';
-      document.getElementById('start-cam-btn').style.display = 'none';
-      document.getElementById('reader-wrapper').style.display = 'block';
+    hands.onResults(onResults);
 
-      html5QrCode = new Html5Qrcode("reader");
+    // カメラ起動処理
+    function startCamera() {
+      document.getElementById('step-init').style.display = 'none';
+      document.getElementById('step-active').style.display = 'block';
 
-      try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 15, qrbox: { width: 220, height: 220 } },
-          onScanSuccess
-        );
-      } catch (err) {
-        console.error(err);
-        document.getElementById('cam-error').innerText = "❌ カメラ起動失敗。HTTPS環境であることを確認してください。";
-        document.getElementById('cam-error').style.display = 'block';
-        document.getElementById('start-cam-btn').style.display = 'block';
-        document.getElementById('reader-wrapper').style.display = 'none';
-      }
-    }
-
-    function onScanSuccess(targetPeerId) {
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-          showStep('step-connecting');
-          
-          isHost = false;
-          conn = peer.connect(targetPeerId);
-          setupConnectionHandlers();
-        });
-      }
-    }
-
-    // P2Pデータ通信のセットアップ
-    function setupConnectionHandlers() {
-      conn.on('open', () => {
-        if (isHost) {
-          // ホスト側から相手へ「共通コード」を送信
-          conn.send({ type: 'INIT_CODE', code: confirmCode });
-          showVerifyScreen(confirmCode);
-        }
+      camera = new Camera(videoElement, {
+        onFrame: async () => {
+          if (!isAuthenticated) {
+            await hands.send({ image: videoElement });
+          }
+        },
+        width: 640,
+        height: 480
       });
+      camera.start();
+    }
 
-      conn.on('data', (data) => {
-        // 共通コードを受け取る（スマホ側）
-        if (data.type === 'INIT_CODE') {
-          confirmCode = data.code;
-          showVerifyScreen(confirmCode);
-        } 
-        // 相手が承認ボタンを押した通知
-        else if (data.type === 'APPROVE') {
-          peerApproved = true;
-          checkBothApproved();
+    // 手の関節座標データ（21個のキーポイント）の解析
+    function onResults(results) {
+      // 描画領域の初期化
+      canvasElement.width = videoElement.videoWidth;
+      canvasElement.height = videoElement.videoHeight;
+
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+
+        // 骨格線の描画
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+        drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 4 });
+
+        // ジェスチャー判定
+        const isPeace = checkPeaceSign(landmarks);
+
+        if (isPeace) {
+          document.getElementById('detect-status').innerText = "✔ 「ピース」を検出！";
+          document.getElementById('detect-status').style.color = "#22c55e";
+
+          if (!isAuthenticated) {
+            isAuthenticated = true;
+            setTimeout(() => {
+              document.getElementById('step-active').style.display = 'none';
+              document.getElementById('step-success').style.display = 'block';
+              if (camera) camera.stop();
+            }, 800);
+          }
+        } else {
+          document.getElementById('detect-status').innerText = "手をかざして「ピース」を作ってください...";
+          document.getElementById('detect-status').style.color = "#e2e8f0";
         }
-      });
-    }
-
-    function showVerifyScreen(code) {
-      document.getElementById('display-code').innerText = code;
-      showStep('step-verify');
-    }
-
-    // 自分が「信頼します」を押したとき
-    function approveConnection() {
-      myApproved = true;
-      
-      // ボタン無効化 ＆ 待機メッセージ表示
-      const btn = document.getElementById('approve-btn');
-      btn.disabled = true;
-      btn.innerText = "承認済み";
-      document.getElementById('wait-status').style.display = 'block';
-
-      // 相手に承認通知を送信
-      conn.send({ type: 'APPROVE' });
-
-      checkBothApproved();
-    }
-
-    // 両方が承認したかチェック
-    function checkBothApproved() {
-      if (myApproved && peerApproved) {
-        showStep('step-success');
+      } else {
+        document.getElementById('detect-status').innerText = "手をカメラに映してください";
+        document.getElementById('detect-status').style.color = "#94a3b8";
       }
+      canvasCtx.restore();
+    }
+
+    // 「ピースサイン」かどうかの判定ロジック
+    function checkPeaceSign(lm) {
+      // 指先のY座標と、関節（第2関節など）のY座標を比較して上がっているか判定
+      // 画面上はY座標が小さいほど「上」になる
+
+      const indexExtended  = lm[8].y < lm[6].y;   // 人差し指が伸びている
+      const middleExtended = lm[12].y < lm[10].y; // 中指が伸びている
+      const ringFolded     = lm[16].y > lm[14].y; // 薬指が曲がっている
+      const pinkyFolded    = lm[20].y > lm[18].y; // 小指が曲がっている
+
+      return indexExtended && middleExtended && ringFolded && pinkyFolded;
     }
   </script>
 </body>
