@@ -3,342 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sound Link - 安定版音響データ通信</title>
+    <title>QR Code Data Transfer - オフライン高速送信</title>
+    <!-- QRコード生成ライブラリ (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
-            --bg: #090d16;
-            --card: #1e293b;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
             --accent: #38bdf8;
             --text: #f8fafc;
-            --sub: #94a3b8;
+            --text-sub: #94a3b8;
             --border: #334155;
-            --success: #22c55e;
-            --danger: #ef4444;
         }
+
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
+
         .container {
             width: 100%;
-            max-width: 550px;
+            max-width: 500px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
+
+        header {
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            color: var(--accent);
+            margin: 0 0 6px 0;
+        }
+
+        header p {
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
         .card {
-            background: var(--card);
+            background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
-        h1 { font-size: 1.5rem; color: var(--accent); text-align: center; margin: 0 0 10px 0; }
-        h2 { font-size: 1.1rem; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-        .input-box {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: #0f172a;
-            color: #fff;
-            box-sizing: border-box;
-            margin-bottom: 10px;
-        }
-        .btn {
-            width: 100%;
-            padding: 12px;
+
+        .file-upload {
+            border: 2px dashed var(--border);
             border-radius: 8px;
-            border: none;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #090d16;
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .btn {
             background: var(--accent);
             color: #000;
             font-weight: bold;
-            font-size: 1rem;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
             cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 10px;
             transition: 0.2s;
         }
-        .btn:hover { filter: brightness(1.1); }
-        .btn-stop { background: var(--danger); color: #fff; }
-        .status-box {
-            background: #0f172a;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            min-height: 80px;
-            margin-top: 10px;
-            white-space: pre-wrap;
-            word-break: break-all;
+
+        .btn:hover {
+            filter: brightness(1.1);
         }
-        .progress-bar-bg {
+
+        .btn:disabled {
             background: var(--border);
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
+            color: var(--text-sub);
+            cursor: not-allowed;
         }
-        .progress-bar-fill {
-            background: var(--accent);
-            height: 100%;
-            width: 0%;
-            transition: width 0.1s linear;
+
+        /* QRコード表示エリア */
+        .qr-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 15px;
+            min-height: 260px;
+        }
+
+        #qrcode canvas, #qrcode img {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .status-text {
+            color: #000;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🔊 Sound Link (安定版)</h1>
+    <header>
+        <h1>📱 高速連続QRコード送信</h1>
+        <p>データを分割してパラパラ漫画のように連続表示します</p>
+    </header>
 
-    <!-- 送信機能 -->
     <div class="card">
-        <h2>1. データ送信 (Transmitter)</h2>
-        <input type="text" id="sendText" class="input-box" value="Hello!" placeholder="送信するテキスト">
-        <button class="btn" id="sendBtn" onclick="startSend()">音波として送信する</button>
-        <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="sendProgress"></div>
+        <!-- ファイル選択 -->
+        <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+            <span id="fileName">ファイルを選択（またはドロップ）</span>
+            <input type="file" id="fileInput" onchange="handleFile(event)">
         </div>
-    </div>
 
-    <!-- 受信機能 -->
-    <div class="card">
-        <h2>2. データ受信 (Receiver)</h2>
-        <button class="btn" id="recvBtn" onclick="toggleReceive()">マイク受信を開始する</button>
-        <div class="status-box" id="logBox">待機中...</div>
+        <!-- FPS（パラパラ漫画の速度）設定 -->
+        <div class="controls">
+            <label>
+                <span>表示速度 (FPS / 1秒あたりのコマ数):</span>
+                <span id="fpsVal">10 FPS</span>
+            </label>
+            <input type="range" id="fpsRange" min="1" max="30" value="10" oninput="document.getElementById('fpsVal').innerText = this.value + ' FPS'">
+        </div>
+
+        <button class="btn" id="startBtn" onclick="startQRStream()">QRコードアニメーション開始</button>
+        <button class="btn" id="stopBtn" onclick="stopQRStream()" style="background:#ef4444; color:#fff; display:none;">停止</button>
+
+        <!-- QRコード表示コンテナ -->
+        <div class="qr-stage">
+            <div id="qrcode"></div>
+            <div class="status-text" id="qrStatus">待機中...</div>
+        </div>
     </div>
 </div>
 
 <script>
-    // --- 通信用パラメータ ---
-    // 安定度を高めるため、高すぎず反響に強い周波数帯に固定
-    const SAMPLE_RATE = 44100;
-    const FREQ_START = 1500;  // ビット「1」送信時の周波数帯の起点(Hz)
-    const FREQ_STEP = 300;     // 各ビット間の周波数間隔(Hz)
-    const BITS_PER_SYMBOL = 4; // 1回で同時に送るビット数
-    const SYMBOL_TIME = 0.15;  // 1音あたりの再生時間（長めにして反響に強くする）
+    let selectedBuffer = null;
+    let qrChunks = [];
+    let animationTimer = null;
+    let currentFrame = 0;
+    const CHUNK_SIZE = 150; // 1枚のQRコードに含めるバイト数（読み取りやすさの最適値）
 
-    // 通信を制御するトリガー音（合図）
-    const FREQ_START_SIGNAL = 1000; // 送信開始の合図 (Hz)
-    const FREQ_END_SIGNAL = 800;    // 送信終了の合図 (Hz)
-
-    let audioCtx = null;
-    let isReceiving = false;
-    let mediaStream = null;
-    let receiveLoopId = null;
-
-    function getAudioContext() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        return audioCtx;
-    }
-
-    // --- 送信処理 ---
-    async function startSend() {
-        const ctx = getAudioContext();
-        const text = document.getElementById('sendText').value;
-        if (!text) return alert("テキストを入力してください");
-
-        const sendBtn = document.getElementById('sendBtn');
-        sendBtn.disabled = true;
-
-        // 文字列をビット列（0/1）に変換
-        const bytes = new TextEncoder().encode(text);
-        let bits = [];
-        for (let b of bytes) {
-            for (let i = 7; i >= 0; i--) bits.push((b >> i) & 1);
-        }
-
-        // 4ビットずつのグループに分割
-        let symbols = [];
-        for (let i = 0; i < bits.length; i += BITS_PER_SYMBOL) {
-            let chunk = bits.slice(i, i + BITS_PER_SYMBOL);
-            while (chunk.length < BITS_PER_SYMBOL) chunk.push(0);
-            symbols.push(chunk);
-        }
-
-        // 音声バッファの生成 [開始音(2個) -> データ音群 -> 終了音(2個)]
-        const totalSymbols = 2 + symbols.length + 2;
-        const totalSamples = Math.floor(SAMPLE_RATE * SYMBOL_TIME * totalSymbols);
-        const buffer = ctx.createBuffer(1, totalSamples, SAMPLE_RATE);
-        const data = buffer.getChannelData(0);
-
-        let offset = 0;
-
-        // 1. 開始信号（トリガー音）
-        for (let i = 0; i < 2; i++) {
-            writeTone(data, offset, FREQ_START_SIGNAL, SYMBOL_TIME);
-            offset += Math.floor(SYMBOL_TIME * SAMPLE_RATE);
-        }
-
-        // 2. データ本体（多重周波数/和音で送信）
-        for (let sym of symbols) {
-            for (let b = 0; b < BITS_PER_SYMBOL; b++) {
-                if (sym[b] === 1) {
-                    const freq = FREQ_START + (b * FREQ_STEP);
-                    writeTone(data, offset, freq, SYMBOL_TIME, 0.2); // 重ね合わせ
-                }
-            }
-            offset += Math.floor(SYMBOL_TIME * SAMPLE_RATE);
-        }
-
-        // 3. 終了信号
-        for (let i = 0; i < 2; i++) {
-            writeTone(data, offset, FREQ_END_SIGNAL, SYMBOL_TIME);
-            offset += Math.floor(SYMBOL_TIME * SAMPLE_RATE);
-        }
-
-        // 再生とプログレスバー表示
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        
-        const startTime = ctx.currentTime;
-        source.start(startTime);
-
-        const progressBar = document.getElementById('sendProgress');
-        const updateProgress = () => {
-            const elapsed = ctx.currentTime - startTime;
-            const progress = Math.min(100, (elapsed / (SYMBOL_TIME * totalSymbols)) * 100);
-            progressBar.style.width = progress + '%';
-            if (progress < 100) {
-                requestAnimationFrame(updateProgress);
-            } else {
-                sendBtn.disabled = false;
-            }
-        };
-        updateProgress();
-    }
-
-    // 正弦波の書き込み関数（ノイズカット用フェード処理付き）
-    function writeTone(output, startSample, freq, duration, volume = 0.5) {
-        const numSamples = Math.floor(duration * SAMPLE_RATE);
-        for (let i = 0; i < numSamples; i++) {
-            const t = i / SAMPLE_RATE;
-            // ポップノイズを防ぐため端を少し減衰
-            let env = 1.0;
-            if (i < 50) env = i / 50;
-            if (i > numSamples - 50) env = (numSamples - i) / 50;
-
-            output[startSample + i] += Math.sin(2 * Math.PI * freq * t) * volume * env;
-        }
-    }
-
-    // --- 受信処理 ---
-    async function toggleReceive() {
-        const btn = document.getElementById('recvBtn');
-        const logBox = document.getElementById('logBox');
-
-        if (isReceiving) {
-            isReceiving = false;
-            btn.innerText = "マイク受信を開始する";
-            btn.classList.remove('btn-stop');
-            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-            if (receiveLoopId) cancelAnimationFrame(receiveLoopId);
-            logBox.innerText = "受信を停止しました。";
-            return;
-        }
-
-        try {
-            const ctx = getAudioContext();
-            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
-            isReceiving = true;
-
-            btn.innerText = "受信を停止";
-            btn.classList.add('btn-stop');
-
-            const source = ctx.createMediaStreamSource(mediaStream);
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 2048; // 周波数分解能
-            source.connect(analyser);
-
-            const fftData = new Uint8Array(analyser.frequencyBinCount);
-            
-            let rxState = 'WAITING'; // WAITING -> RECORDING
-            let rxBits = [];
-            let lastCheckTime = 0;
-
-            logBox.innerText = "マイク入力待機中... 音波シグナルを検出します。";
-
-            const processAudio = () => {
-                if (!isReceiving) return;
-
-                const now = Date.now();
-                // 一定間隔（SYMBOL_TIME）で周波数を解析
-                if (now - lastCheckTime >= SYMBOL_TIME * 1000) {
-                    analyser.getByteFrequencyData(fftData);
-
-                    const startSig = getFrequencyPower(fftData, FREQ_START_SIGNAL, analyser.fftSize);
-                    const endSig = getFrequencyPower(fftData, FREQ_END_SIGNAL, analyser.fftSize);
-
-                    if (rxState === 'WAITING') {
-                        // 開始シグナルを感知したら自動同期開始
-                        if (startSig > 100) {
-                            rxState = 'RECORDING';
-                            rxBits = [];
-                            logBox.innerText = "⚡ 開始シグナル検知！データを受信しています...\n";
-                        }
-                    } else if (rxState === 'RECORDING') {
-                        // 終了シグナルで解析開始
-                        if (endSig > 100) {
-                            rxState = 'WAITING';
-                            decodeBits(rxBits);
-                        } else {
-                            // 各キャリア周波数が鳴っているかを判定
-                            for (let b = 0; b < BITS_PER_SYMBOL; b++) {
-                                const freq = FREQ_START + (b * FREQ_STEP);
-                                const power = getFrequencyPower(fftData, freq, analyser.fftSize);
-                                rxBits.push(power > 80 ? 1 : 0); // 閾値80で判定
-                            }
-                            logBox.innerText = `受信中... (${rxBits.length} bits 取得)`;
-                        }
-                    }
-                    lastCheckTime = now;
-                }
-                receiveLoopId = requestAnimationFrame(processAudio);
+    // ファイル読み込み処理
+    function handleFile(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('fileName').innerText = `選択中: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                selectedBuffer = new Uint8Array(event.target.result);
             };
-
-            processAudio();
-
-        } catch (e) {
-            alert("マイクの利用許可が必要です: " + e.message);
+            reader.readAsArrayBuffer(file);
         }
     }
 
-    // 周波数ごとの音の強さを判定する計算関数
-    function getFrequencyPower(fftData, freq, fftSize) {
-        const binIndex = Math.round(freq / (SAMPLE_RATE / fftSize));
-        return fftData[binIndex] || 0;
-    }
-
-    // 受信した0/1のビット配列を元のテキストに変換
-    function decodeBits(bits) {
-        const logBox = document.getElementById('logBox');
-        if (bits.length < 8) {
-            logBox.innerText = "エラー: 取得データが不十分です。";
+    // データ分割＆QRコードアニメーション開始
+    function startQRStream() {
+        if (!selectedBuffer || selectedBuffer.length === 0) {
+            alert("ファイルを選択してください。");
             return;
         }
 
-        const bytes = new Uint8Array(Math.floor(bits.length / 8));
-        for (let i = 0; i < bytes.length; i++) {
-            let byteVal = 0;
-            for (let b = 0; b < 8; b++) {
-                byteVal = (byteVal << 1) | bits[i * 8 + b];
-            }
-            bytes[i] = byteVal;
+        const fps = parseInt(document.getElementById('fpsRange').value);
+        const totalChunks = Math.ceil(selectedBuffer.length / CHUNK_SIZE);
+        qrChunks = [];
+
+        // データを分割し、ヘッダー情報（インデックス/総数）を付与
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, selectedBuffer.length);
+            const chunkData = selectedBuffer.slice(start, end);
+            
+            // Base64化してパケットを作成 [i:総数:データ]
+            const base64Str = btoa(String.fromCharCode.apply(null, chunkData));
+            const packet = `${i}:${totalChunks}:${base64Str}`;
+            qrChunks.push(packet);
         }
 
-        try {
-            const decodedText = new TextDecoder().decode(bytes);
-            logBox.innerText = `🎉 受信成功！\n復元データ: "${decodedText}"`;
-        } catch (e) {
-            logBox.innerText = "エラー: データの解析（復元）に失敗しました。";
-        }
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+
+        currentFrame = 0;
+        const qrcodeContainer = document.getElementById('qrcode');
+        qrcodeContainer.innerHTML = "";
+
+        // QRコードオブジェクトの初期化
+        const qr = new QRCode(qrcodeContainer, {
+            width: 220,
+            height: 220,
+            correctLevel: QRCode.CorrectLevel.L // 送信量優先（低エラー訂正）
+        });
+
+        // パラパラ漫画再生ループ[cite: 1]
+        const intervalMs = 1000 / fps;
+        animationTimer = setInterval(() => {
+            const packet = qrChunks[currentFrame];
+            qr.clear();
+            qr.makeCode(packet);
+
+            document.getElementById('qrStatus').innerText = `FRAME: ${currentFrame + 1} / ${totalChunks}`;
+            currentFrame = (currentFrame + 1) % totalChunks;
+        }, intervalMs);
+    }
+
+    // 停止処理
+    function stopQRStream() {
+        if (animationTimer) clearInterval(animationTimer);
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('qrStatus').innerText = "停止しました";
     }
 </script>
 
