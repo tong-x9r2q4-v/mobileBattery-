@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>かざしてP2P接続システム</title>
+  <title>かざしてP2P接続</title>
+  <!-- ライブラリの読み込み -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
   <style>
@@ -33,18 +34,37 @@
       background: #3b82f6;
       color: white;
       border: none;
-      padding: 0.8rem 1.5rem;
+      padding: 0.9rem 1.5rem;
       font-size: 1rem;
+      font-weight: bold;
       border-radius: 0.5rem;
       cursor: pointer;
       margin-top: 1rem;
       width: 100%;
     }
     .btn-success { background: #22c55e; }
-    #qrcode { display: flex; justify-content: center; margin: 1rem 0; background: white; padding: 10px; border-radius: 8px; }
-    #reader { width: 100%; margin-top: 1rem; }
+    #qrcode { display: flex; justify-content: center; margin: 1rem 0; background: white; padding: 12px; border-radius: 8px; }
     
-    /* ローディング（接続中）アニメーション */
+    /* カメラ映像枠の表示設定 */
+    #reader-wrapper {
+      width: 100%;
+      margin-top: 1rem;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      display: none;
+    }
+    #reader { width: 100%; }
+
+    /* エラーメッセージ表示 */
+    .error-msg {
+      color: #ef4444;
+      font-size: 0.85rem;
+      margin-top: 0.8rem;
+      display: none;
+    }
+    
+    /* スピナー（接続中） */
     .spinner {
       border: 4px solid rgba(255, 255, 255, 0.1);
       width: 50px; height: 50px;
@@ -55,19 +75,19 @@
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* 確認コード表示 */
+    /* 6桁確認コード */
     .code-box {
       font-size: 2.5rem;
       font-weight: bold;
       letter-spacing: 0.3rem;
       color: #38bdf8;
       background: #0f172a;
-      padding: 0.5rem;
+      padding: 0.6rem;
       border-radius: 0.5rem;
       margin: 1rem 0;
     }
 
-    /* チェックマークアニメーション */
+    /* チェックマーク */
     .checkmark-svg {
       width: 80px; height: 80px;
       margin: 1rem auto;
@@ -83,62 +103,72 @@
 <body>
 
   <div class="card">
+    <!-- ステップ 1: デスクトップQR表示 / スマホカメラ起動選択 -->
     <div id="step-init">
       <h2>P2P かざして接続</h2>
-      <p style="font-size: 0.9rem; color: #94a3b8;">デスクトップでQRを表示し、スマホでスキャンしてください</p>
+      <p style="font-size: 0.85rem; color: #94a3b8;">デスクトップにQRを表示し、スマホでスキャンします</p>
+      
       <div id="qrcode"></div>
-      <p style="font-size: 0.8rem; color: #64748b;">ID: <span id="my-peer-id">発行中...</span></p>
-      <button class="btn" onclick="startScanner()">📷 スマホでQRを読み取る</button>
-      <div id="reader"></div>
+      <p style="font-size: 0.8rem; color: #64748b;">自端末ID: <span id="my-peer-id">取得中...</span></p>
+      
+      <button class="btn" id="start-cam-btn" onclick="startCameraScanner()">📷 カメラを起動して読み取る</button>
+      
+      <div id="reader-wrapper">
+        <div id="reader"></div>
+      </div>
+      <p class="error-msg" id="cam-error"></p>
     </div>
 
+    <!-- ステップ 2: 接続中 -->
     <div id="step-connecting" style="display: none;">
       <h2>接続中...</h2>
       <div class="spinner"></div>
       <p>P2P通信を確立しています</p>
     </div>
 
+    <!-- ステップ 3: 確認コード ＆ 信頼ボタン -->
     <div id="step-verify" style="display: none;">
       <h2>接続の確認</h2>
-      <p>両方の画面に同じコードが表示されていますか？</p>
+      <p>両画面の数値が一致しているか確認してください</p>
       <div class="code-box" id="display-code">------</div>
       <button class="btn btn-success" onclick="approveConnection()">信頼します</button>
     </div>
 
+    <!-- ステップ 4: 接続完了（チェックマーク表示） -->
     <div id="step-success" style="display: none;">
       <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
         <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none"/>
         <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
       </svg>
       <h2>接続完了</h2>
-      <p>安全なP2P通信が確立されました！</p>
+      <p>安全な通信が確立されました！</p>
     </div>
   </div>
 
   <script>
     let peer = null;
     let conn = null;
-    let html5QrcodeScanner = null;
+    let html5QrCode = null;
     let confirmCode = "";
 
-    // 画面切り替えユーティリティ
+    // ステップ表示切り替え
     function showStep(stepId) {
       ['step-init', 'step-connecting', 'step-verify', 'step-success'].forEach(id => {
         document.getElementById(id).style.display = (id === stepId) ? 'block' : 'none';
       });
     }
 
-    // ランダムな6桁の確認コードを生成
+    // 6桁ランダムコード生成
     function generateCode() {
       return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
-    // PeerJS (P2P) の初期化
+    // PeerJS の初期化
     peer = new Peer();
 
     peer.on('open', (id) => {
       document.getElementById('my-peer-id').innerText = id;
-      // デスクトップ側：QRコードを生成
+      // デスクトップ用QRコード生成
       new QRCode(document.getElementById("qrcode"), {
         text: id,
         width: 160,
@@ -146,32 +176,63 @@
       });
     });
 
-    // 【デスクトップ側】スマホからの接続要求を受信
+    // デスクトップ側：スマホからの接続リクエストを受信
     peer.on('connection', (incomingConn) => {
       conn = incomingConn;
       setupConnectionHandlers();
       showStep('step-connecting');
     });
 
-    // 【スマホ側】ボタンを押してカメラを起動
-    function startScanner() {
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-      html5QrcodeScanner.render((targetPeerId) => {
-        // QRコードを読み取ったらカメラ停止
-        html5QrcodeScanner.clear();
-        document.getElementById('reader').remove();
-        
-        // P2P 接続要求を送信
-        showStep('step-connecting');
-        conn = peer.connect(targetPeerId);
-        setupConnectionHandlers();
-      });
+    // 【スマホ側】カメラを起動してQRを連続読み取り
+    async function startCameraScanner() {
+      const errorEl = document.getElementById('cam-error');
+      errorEl.style.display = 'none';
+
+      document.getElementById('start-cam-btn').style.display = 'none';
+      document.getElementById('reader-wrapper').style.display = 'block';
+
+      html5QrCode = new Html5Qrcode("reader");
+
+      const config = { 
+        fps: 15, // 読み取りフレームレートを高めて反応を安定化
+        qrbox: { width: 220, height: 220 } 
+      };
+
+      try {
+        // 背面カメラ（environment）をダイレクト指定してカメラ起動
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess
+        );
+      } catch (err) {
+        console.error("Camera Error: ", err);
+        errorEl.innerText = "❌ カメラの起動に失敗しました。HTTPS環境かつカメラ権限が許可されているか確認してください。";
+        errorEl.style.display = 'block';
+        document.getElementById('start-cam-btn').style.display = 'block';
+        document.getElementById('reader-wrapper').style.display = 'none';
+      }
     }
 
-    // P2Pデータ受信ハンドラの設定
+    // QRコード読み取り成功時
+    function onScanSuccess(targetPeerId) {
+      if (html5QrCode) {
+        // カメラ停止
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          showStep('step-connecting');
+          
+          // P2P 接続呼び出し
+          conn = peer.connect(targetPeerId);
+          setupConnectionHandlers();
+        }).catch(err => console.error(err));
+      }
+    }
+
+    // P2P通信のイベント設定
     function setupConnectionHandlers() {
       conn.on('open', () => {
-        // 接続が確立したら、確認コード生成（接続を開始した側が生成して共有）
+        // 接続完了時、片方がコードを生成して共有
         if (!confirmCode) {
           confirmCode = generateCode();
           conn.send({ type: 'VERIFY_CODE', code: confirmCode });
@@ -195,7 +256,7 @@
       showStep('step-verify');
     }
 
-    // 「信頼します」ボタンを押したときの処理
+    // 「信頼します」ボタンタップ時
     function approveConnection() {
       conn.send({ type: 'APPROVED' });
       showStep('step-success');
