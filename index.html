@@ -3,220 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>かざしてジェスチャー認証</title>
-  
-  <!-- MediaPipe Hands と 描画ライブラリの読み込み -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
+  <title>位置情報・近接時刻同期認証</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: #0f172a;
       color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: sans-serif;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
+      margin: 0;
       text-align: center;
     }
     .card {
       background: #1e293b;
       padding: 2rem;
       border-radius: 1rem;
+      width: 85%;
+      max-width: 400px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      width: 90%;
-      max-width: 440px;
     }
-    h2 { margin-bottom: 0.5rem; font-size: 1.4rem; }
-    p { font-size: 0.9rem; color: #94a3b8; }
-
-    /* カメラ・描画キャンバスの重ね合わせ */
-    .canvas-container {
-      position: relative;
-      width: 100%;
-      max-width: 360px;
-      height: 270px;
-      margin: 1.2rem auto;
-      border-radius: 0.8rem;
-      overflow: hidden;
-      background: #000;
-    }
-    video, canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-    }
-    /* 鏡合わせ表示（自然な操作感のため） */
-    .mirror { transform: scaleX(-1); }
-
-    .target-pose {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #38bdf8;
-      background: #0f172a;
-      padding: 0.6rem;
-      border-radius: 0.5rem;
-      margin-top: 0.8rem;
-    }
-
-    .btn {
+    button {
       background: #3b82f6;
       color: white;
       border: none;
-      padding: 0.8rem 1.5rem;
-      font-size: 1rem;
+      padding: 1.2rem;
+      font-size: 1.2rem;
       font-weight: bold;
       border-radius: 0.5rem;
+      width: 100%;
       cursor: pointer;
       margin-top: 1rem;
-      width: 100%;
     }
-
-    /* チェックマークアニメーション */
-    .checkmark-svg {
-      width: 80px; height: 80px;
-      margin: 1.5rem auto;
-      stroke: #22c55e; stroke-width: 3; stroke-miterlimit: 10;
-      animation: scale .3s ease-in-out forwards;
-    }
-    .checkmark-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: stroke 0.6s forwards; }
-    .checkmark-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s 0.6s forwards; }
-    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
-    @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+    button:active { background: #1d4ed8; }
+    #status { margin-top: 1.5rem; font-size: 0.9rem; color: #94a3b8; }
+    .success { color: #4ade80 !important; font-size: 1.2rem; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <!-- ステップ 1: カメラ起動ボタン ＆ 準備 -->
-    <div id="step-init">
-      <h2>ジェスチャーかざして認証</h2>
-      <p>指定されたポーズをカメラにかざしてログインします</p>
-      
-      <div class="target-pose">指定ポーズ: ✌️ ピース</div>
-      <button class="btn" onclick="startCamera()">📷 カメラを起動して認証開始</button>
-    </div>
+    <h2>📍 同時タップ認証</h2>
+    <p>せーので同時にボタンを押してください</p>
 
-    <!-- ステップ 2: カメラ認識中 -->
-    <div id="step-active" style="display: none;">
-      <h2>手をカメラにかざしてください</h2>
-      <p id="pose-instruction">「✌️ ピース」を作ってください</p>
+    <button id="syncBtn" onclick="triggerSync()">せーのでタップ！</button>
 
-      <div class="canvas-container">
-        <video id="input-video" class="mirror" playsinline></video>
-        <canvas id="output-canvas" class="mirror"></canvas>
-      </div>
-
-      <p id="detect-status" style="color: #e2e8f0; font-weight: bold;">検出中...</p>
-    </div>
-
-    <!-- ステップ 3: 認証成功 -->
-    <div id="step-success" style="display: none;">
-      <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-        <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none"/>
-        <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-      </svg>
-      <h2>認証成功！</h2>
-      <p>サインが一致しました。ログイン完了です。</p>
-    </div>
+    <div id="status">待機中...</div>
   </div>
 
   <script>
-    const videoElement = document.getElementById('input-video');
-    const canvasElement = document.getElementById('output-canvas');
-    const canvasCtx = canvasElement.getContext('2d');
-    
-    let camera = null;
-    let isAuthenticated = false;
-
-    // MediaPipe Hands の初期化
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 1,           // 1つの手だけを認識
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7
-    });
-
-    hands.onResults(onResults);
-
-    // カメラ起動処理
-    function startCamera() {
-      document.getElementById('step-init').style.display = 'none';
-      document.getElementById('step-active').style.display = 'block';
-
-      camera = new Camera(videoElement, {
-        onFrame: async () => {
-          if (!isAuthenticated) {
-            await hands.send({ image: videoElement });
-          }
-        },
-        width: 640,
-        height: 480
-      });
-      camera.start();
+    // ハバーサイン公式：2つの緯度経度から距離(m)を算出
+    function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // 地球の半径 (m)
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; 
     }
 
-    // 手の関節座標データ（21個のキーポイント）の解析
-    function onResults(results) {
-      // 描画領域の初期化
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
+    function triggerSync() {
+      const statusEl = document.getElementById('status');
+      statusEl.innerText = "位置情報を取得中...";
 
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
-
-        // 骨格線の描画
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
-        drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 4 });
-
-        // ジェスチャー判定
-        const isPeace = checkPeaceSign(landmarks);
-
-        if (isPeace) {
-          document.getElementById('detect-status').innerText = "✔ 「ピース」を検出！";
-          document.getElementById('detect-status').style.color = "#22c55e";
-
-          if (!isAuthenticated) {
-            isAuthenticated = true;
-            setTimeout(() => {
-              document.getElementById('step-active').style.display = 'none';
-              document.getElementById('step-success').style.display = 'block';
-              if (camera) camera.stop();
-            }, 800);
-          }
-        } else {
-          document.getElementById('detect-status').innerText = "手をかざして「ピース」を作ってください...";
-          document.getElementById('detect-status').style.color = "#e2e8f0";
-        }
-      } else {
-        document.getElementById('detect-status').innerText = "手をカメラに映してください";
-        document.getElementById('detect-status').style.color = "#94a3b8";
+      if (!navigator.geolocation) {
+        statusEl.innerText = "お使いのブラウザは位置情報に対応していません";
+        return;
       }
-      canvasCtx.restore();
+
+      // 高精度で位置情報を取得
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const payload = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            timestamp: Date.now() // タップした瞬間のミリ秒
+          };
+
+          statusEl.innerText = `データ生成完了!\n時刻: ${payload.timestamp}\n(サーバーへ送信中...)`;
+
+          // ※ 本来はここで Firebase や GAS 等の backend に payload を送信します
+          // 以下は2台のデータが揃ったと仮定した照合ロジックのサンプルです
+          simulateServerVerification(payload);
+        },
+        (error) => {
+          statusEl.innerText = "位置情報の取得に失敗しました: " + error.message;
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
     }
 
-    // 「ピースサイン」かどうかの判定ロジック
-    function checkPeaceSign(lm) {
-      // 指先のY座標と、関節（第2関節など）のY座標を比較して上がっているか判定
-      // 画面上はY座標が小さいほど「上」になる
+    // サーバー側で行う照合判定のシミュレーション関数
+    function simulateServerVerification(deviceA) {
+      // 例: もう1台(Device B)の疑似データ（距離約3m、差分300ミリ秒）
+      const deviceB = {
+        latitude: deviceA.latitude + 0.00003,
+        longitude: deviceA.longitude + 0.00003,
+        timestamp: deviceA.timestamp + 300 
+      };
 
-      const indexExtended  = lm[8].y < lm[6].y;   // 人差し指が伸びている
-      const middleExtended = lm[12].y < lm[10].y; // 中指が伸びている
-      const ringFolded     = lm[16].y > lm[14].y; // 薬指が曲がっている
-      const pinkyFolded    = lm[20].y > lm[18].y; // 小指が曲がっている
+      const distance = getDistanceInMeters(
+        deviceA.latitude, deviceA.longitude,
+        deviceB.latitude, deviceB.longitude
+      );
+      const timeDiff = Math.abs(deviceA.timestamp - deviceB.timestamp);
 
-      return indexExtended && middleExtended && ringFolded && pinkyFolded;
+      const statusEl = document.getElementById('status');
+
+      // 条件: 距離 20m 以内 & 時間差 1000ms(1秒) 以内
+      if (distance <= 20 && timeDiff <= 1000) {
+        statusEl.className = "success";
+        statusEl.innerText = `🔓 認証成功！\n距離: ${distance.toFixed(1)}m / 時間差: ${timeDiff}ms`;
+      } else {
+        statusEl.innerText = `❌ 認証失敗\n距離: ${distance.toFixed(1)}m / 時間差: ${timeDiff}ms`;
+      }
     }
   </script>
 </body>
