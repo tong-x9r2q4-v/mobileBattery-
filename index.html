@@ -3,343 +3,600 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音響データ通信 (Audio Data Transfer)</title>
+    <title>Sound Link - 音響データ通信システム</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --bg: #090d16;
+            --card-bg: #131c2e;
             --accent: #38bdf8;
-            --accent-hover: #0284c7;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --border: #334155;
+            --accent-glow: rgba(56, 189, 248, 0.35);
+            --text: #f8fafc;
+            --sub-text: #94a3b8;
+            --border: #1e293b;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
+
         .container {
-            max-width: 650px;
             width: 100%;
+            max-width: 600px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
-        h1 {
+
+        header {
             text-align: center;
-            font-size: 1.8rem;
-            color: var(--accent);
-            margin-bottom: 5px;
         }
-        p.subtitle {
-            text-align: center;
-            color: var(--text-sub);
+
+        header h1 {
+            font-size: 2rem;
+            margin: 0;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        header p {
+            color: var(--sub-text);
             font-size: 0.9rem;
-            margin-top: 0;
+            margin-top: 6px;
         }
+
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
         }
-        h2 {
-            font-size: 1.2rem;
-            margin-top: 0;
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
             border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
+            padding-bottom: 12px;
         }
-        .file-upload {
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .drop-zone {
             border: 2px dashed var(--border);
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 24px;
             text-align: center;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
+            background: rgba(15, 23, 42, 0.4);
         }
-        .file-upload:hover {
+
+        .drop-zone:hover, .drop-zone.dragover {
             border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
             background: rgba(56, 189, 248, 0.05);
         }
-        input[type="file"] {
-            display: none;
+
+        .drop-zone p {
+            margin: 0;
+            color: var(--sub-text);
+            font-size: 0.9rem;
         }
-        .btn {
-            background: var(--accent);
-            color: #000;
-            font-weight: bold;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
+
+        .drop-zone .file-name {
+            color: var(--accent);
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .input-group {
+            margin-top: 12px;
+        }
+
+        input[type="text"] {
             width: 100%;
-            margin-top: 15px;
+            padding: 12px 14px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            color: #000;
+            font-weight: 700;
             font-size: 1rem;
-            transition: 0.2s;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px var(--accent-glow);
         }
+
         .btn:hover {
-            background: var(--accent-hover);
-            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+            filter: brightness(1.1);
         }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
         .btn:disabled {
             background: var(--border);
-            color: var(--text-sub);
+            color: var(--sub-text);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
-        .progress-container {
-            margin-top: 15px;
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
-        .progress-bar-bg {
-            background: var(--border);
-            height: 12px;
-            border-radius: 6px;
+
+        /* 視覚的スペクトラムアナライザ */
+        .visualizer-container {
+            width: 100%;
+            height: 60px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            margin-top: 16px;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
-        .progress-bar-fill {
-            background: var(--accent);
+
+        canvas {
+            width: 100%;
             height: 100%;
-            width: 0%;
-            transition: width 0.1s linear;
+            display: block;
         }
-        .progress-text {
-            font-size: 0.85rem;
-            color: var(--text-sub);
+
+        /* プログレスバー UI */
+        .progress-wrapper {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .progress-info {
             display: flex;
             justify-content: space-between;
-            margin-top: 5px;
+            font-size: 0.85rem;
+            color: var(--sub-text);
+            margin-bottom: 6px;
         }
-        .output-box {
-            background: #090d16;
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #818cf8);
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+
+        .console-box {
+            background: rgba(15, 23, 42, 0.8);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            word-break: break-all;
-            min-height: 40px;
-            max-height: 150px;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #38bdf8;
+            max-height: 120px;
             overflow-y: auto;
+            word-break: break-all;
+            margin-top: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div>
-            <h1>🔊 音響データ通信システム</h1>
-            <p class="subtitle">音波（Sine波/FFT解析）を使ってファイル・テキストを送受信します[cite: 1]</p>
+
+<div class="container">
+    <header>
+        <h1>SOUND LINK</h1>
+        <p>音波（多重周波数 / パラレル通信）を使ったデータ高速送受信システム</p>
+    </header>
+
+    <!-- 送信カード -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">📡 1. データ送信 (Sound Transmitter)</div>
+        </div>
+        
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <p id="fileNameDisplay">📂 ファイルをドロップするか、クリックして選択</p>
+            <input type="file" id="fileInput" style="display:none;" onchange="onFileSelected(event)">
         </div>
 
-        <!-- 送信セクション -->
-        <div class="card">
-            <h2>1. 送信 (Sound Sender)[cite: 1]</h2>
-            <div class="file-upload" onclick="document.getElementById('fileInput').click()">
-                <span id="fileName">クリックしてファイルを選択（またはドロップ）</span>
-                <input type="file" id="fileInput" onchange="handleFileSelect(event)">
-            </div>
-            <p style="text-align: center; color: var(--text-sub); margin: 10px 0;">または</p>
-            <input type="text" id="textInput" placeholder="直接テキストを入力" style="width: 96%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: #090d16; color: #fff;">
-            
-            <button class="btn" id="sendBtn" onclick="startTransmission()">音声データを生成して送信</button>
-            
-            <div class="progress-container" id="sendProgress" style="display: none;">
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="sendFill"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="sendStatus">送信中...</span>
-                    <span id="sendPercent">0%</span>
-                </div>
-            </div>
+        <div class="input-group">
+            <input type="text" id="textInput" placeholder="または送信するテキストメッセージを入力...">
         </div>
 
-        <!-- 受信セクション -->
-        <div class="card">
-            <h2>2. 受信 (Sound Receiver)[cite: 1]</h2>
-            <p style="font-size: 0.85rem; color: var(--text-sub);">マイク音声を自動解析してバイナリデータを復元します[cite: 1]。</p>
-            <button class="btn" id="listenBtn" onclick="toggleListening()">マイク受信を開始</button>
-            
-            <div class="progress-container" id="receiveProgress" style="display: none;">
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="receiveFill"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="receiveStatus">受信待機中...</span>
-                    <span id="receivePercent">0%</span>
-                </div>
-            </div>
+        <button class="btn" id="sendBtn" onclick="transmitSound()">音波データを生成して送信</button>
 
-            <h3 style="font-size: 0.95rem; margin-top: 15px;">復元されたデータ:</h3>
-            <div class="output-box" id="output">（ここに受信結果が表示されます）</div>
+        <div class="progress-wrapper" id="sendProgressWrapper">
+            <div class="progress-info">
+                <span id="sendStatus">送信中...</span>
+                <span id="sendPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="sendProgressFill"></div>
+            </div>
         </div>
     </div>
 
-    <script>
-        const SAMPLE_RATE = 44100;
-        const FREQ_0 = 1000; // Bit '0' の周波数 (Hz)[cite: 1]
-        const FREQ_1 = 2000; // Bit '1' の周波数 (Hz)[cite: 1]
-        const BIT_DURATION = 0.1; // 1ビットの長さ（秒）[cite: 1]
+    <!-- 受信カード -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">🎙️ 2. データ受信 (Sound Receiver)[cite: 1]</div>
+        </div>
 
-        let selectedData = null;
-        let audioCtx = null;
-        let isListening = false;
-        let mediaStream = null;
+        <button class="btn" id="listenBtn" onclick="toggleReceiver()">マイク受信を開始する</button>
 
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (file) {
-                document.getElementById('fileName').innerText = `選択中: ${file.name} (${file.size} bytes)`;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    selectedData = new Uint8Array(event.target.result);
-                };
-                reader.readAsArrayBuffer(file);
+        <div class="visualizer-container">
+            <canvas id="visualizerCanvas"></canvas>
+        </div>
+
+        <div class="progress-wrapper" id="receiveProgressWrapper">
+            <div class="progress-info">
+                <span id="receiveStatus">待機中...</span>
+                <span id="receivePercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="receiveProgressFill"></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 12px; font-size: 0.85rem; color: var(--sub-text);">復元ログ・受信データ:</div>
+        <div class="console-box" id="consoleBox">待機中...</div>
+    </div>
+</div>
+
+<script>
+    // --- 通信プロトコル・パラメータ設定 ---
+    const SAMPLE_RATE = 44100;
+    const FREQ_START = 2000;  // 通信帯域の開始周波数 (Hz)
+    const FREQ_STEP = 250;    // キャリア間隔 (Hz)
+    const BITS_PER_SYMBOL = 4; // 1回の音波（シンボル）で同時に送るビット数[cite: 1]
+    const SYMBOL_DURATION = 0.08; // 1シンボルの長さ（0.08秒 = 高速通信）[cite: 1]
+    
+    // パケット制御フレーム用周波数
+    const FREQ_PREAMBLE = 1500;  // プリアンブル（開始合図）
+    const FREQ_END = 1200;       // 通信終了合図
+
+    let audioCtx = null;
+    let selectedBuffer = null;
+    let isListening = false;
+    let mediaStream = null;
+    let animFrameId = null;
+
+    // --- ファイルドラッグ＆ドロップ処理 ---
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    function onFileSelected(e) {
+        if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    }
+
+    function handleFile(file) {
+        document.getElementById('fileNameDisplay').innerHTML = `<span class="file-name">📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)</span>`;
+        const reader = new FileReader();
+        reader.onload = (e) => { selectedBuffer = new Uint8Array(e.target.result); };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // --- 1. 送信処理（マルチキャリアパラレル音波合成） ---[cite: 1]
+    async function transmitSound() {
+        let payload = selectedBuffer;
+        const textVal = document.getElementById('textInput').value;
+
+        if (!payload && textVal) {
+            payload = new TextEncoder().encode(textVal);
+        }
+
+        if (!payload || payload.length === 0) {
+            alert('送信するファイルを選択するか、テキストを入力してください。');
+            return;
+        }
+
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = true;
+        const progressWrapper = document.getElementById('sendProgressWrapper');
+        const progressFill = document.getElementById('sendProgressFill');
+        const progressPercent = document.getElementById('sendPercent');
+        const statusText = document.getElementById('sendStatus');
+        progressWrapper.style.display = 'block';
+
+        // データをビット配列に変換[cite: 1]
+        let bitArray = [];
+        for (let byte of payload) {
+            for (let b = 7; b >= 0; b--) {
+                bitArray.push((byte >> b) & 1);
             }
         }
 
-        // --- 送信処理 ---
-        async function startTransmission() {
-            let dataBytes = selectedData;
-            const text = document.getElementById('textInput').value;
-            
-            if (!dataBytes && text) {
-                dataBytes = new TextEncoder().encode(text);
-            }
-            if (!dataBytes || dataBytes.length === 0) {
-                alert("ファイルを選択するかテキストを入力してください");
-                return;
-            }
+        // 4ビットずつ（1シンボル）に分割[cite: 1]
+        let symbols = [];
+        for (let i = 0; i < bitArray.length; i += BITS_PER_SYMBOL) {
+            let chunk = bitArray.slice(i, i + BITS_PER_SYMBOL);
+            while(chunk.length < BITS_PER_SYMBOL) chunk.push(0);
+            symbols.push(chunk);
+        }
 
+        // 音声波形（AudioBuffer）の作成
+        // 構成: [プリアンブル (3個)] -> [データシンボル群] -> [終了信号 (2個)]
+        const totalSymbols = 3 + symbols.length + 2;
+        const totalDuration = totalSymbols * SYMBOL_DURATION;
+        const totalSamples = Math.floor(SAMPLE_RATE * totalDuration);
+        const buffer = audioCtx.createBuffer(1, totalSamples, SAMPLE_RATE);
+        const channel = buffer.getChannelData(0);
+
+        let currentSample = 0;
+
+        // プリアンブル音（開始トリガー）を生成
+        for (let p = 0; p < 3; p++) {
+            generateTone(channel, currentSample, FREQ_PREAMBLE, SYMBOL_DURATION);
+            currentSample += Math.floor(SYMBOL_DURATION * SAMPLE_RATE);
+        }
+
+        // データシンボル（動画のようなパラレル音波）を生成[cite: 1]
+        for (let sym of symbols) {
+            for (let b = 0; b < BITS_PER_SYMBOL; b++) {
+                if (sym[b] === 1) { // 1のビットに対応する周波数を同時に重ね合わせる（和音）[cite: 1]
+                    const freq = FREQ_START + (b * FREQ_STEP);
+                    generateTone(channel, currentSample, freq, SYMBOL_DURATION, 0.25);
+                }
+            }
+            currentSample += Math.floor(SYMBOL_DURATION * SAMPLE_RATE);
+        }
+
+        // 通信終了信号
+        for (let e = 0; e < 2; e++) {
+            generateTone(channel, currentSample, FREQ_END, SYMBOL_DURATION);
+            currentSample += Math.floor(SYMBOL_DURATION * SAMPLE_RATE);
+        }
+
+        // 再生＆アニメーション
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+
+        const startTime = audioCtx.currentTime;
+        source.start(startTime);
+        statusText.innerText = "音波データ送信中...";
+
+        const updateProgress = () => {
+            const elapsed = audioCtx.currentTime - startTime;
+            const pct = Math.min(100, (elapsed / totalDuration) * 100);
+            progressFill.style.width = pct + '%';
+            progressPercent.innerText = Math.floor(pct) + '%';
+
+            if (pct < 100) {
+                requestAnimationFrame(updateProgress);
+            } else {
+                statusText.innerText = "送信完了！";
+                sendBtn.disabled = false;
+            }
+        };
+        updateProgress();
+    }
+
+    // 正弦波（Sine波）をバッファに書き込む共通関数
+    function generateTone(channel, startSample, freq, duration, gain = 0.5) {
+        const samples = Math.floor(duration * SAMPLE_RATE);
+        for (let i = 0; i < samples; i++) {
+            const t = i / SAMPLE_RATE;
+            // エンベロープ（ノイズ低減フェード）
+            let env = 1.0;
+            if (i < 100) env = i / 100;
+            if (i > samples - 100) env = (samples - i) / 100;
+
+            channel[startSample + i] += Math.sin(2 * Math.PI * freq * t) * gain * env;
+        }
+    }
+
+    // --- 2. 受信処理 (リアルタイム周波数同期解析) ---[cite: 1]
+    async function toggleReceiver() {
+        const btn = document.getElementById('listenBtn');
+        const consoleBox = document.getElementById('consoleBox');
+
+        if (isListening) {
+            isListening = false;
+            btn.innerText = "マイク受信を開始する";
+            btn.classList.remove('btn-danger');
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            return;
+        }
+
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+            isListening = true;
+            btn.innerText = "受信停止";
+            btn.classList.add('btn-danger');
+
+            const source = audioCtx.createMediaStreamSource(mediaStream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048; 
+            analyser.smoothingTimeConstant = 0.1;
+            source.connect(analyser);
+
+            canvasCtx = document.getElementById('visualizerCanvas').getContext('2d');
             
-            // ビット列への変換[cite: 1]
-            let bits = "";
-            for (let b of dataBytes) {
-                bits += b.toString(2).padStart(8, '0');
-            }
+            // 受信ステート
+            let state = 'IDLE'; // IDLE -> RECEIVING
+            let receivedBits = [];
+            let lastProcessTime = 0;
 
-            const sendBtn = document.getElementById('sendBtn');
-            sendBtn.disabled = true;
-            document.getElementById('sendProgress').style.display = 'block';
+            consoleBox.innerText = "マイクスタンバイ中... 音波信号を待機しています。\n";
 
-            // 音声波形の構築
-            const totalSamples = Math.floor(SAMPLE_RATE * BIT_DURATION * bits.length);
-            const buffer = audioCtx.createBuffer(1, totalSamples, SAMPLE_RATE);
-            const channelData = buffer.getChannelData(0);
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
 
-            for (let i = 0; i < bits.length; i++) {
-                const freq = bits[i] === '1' ? FREQ_1 : FREQ_0;[cite: 1]
-                const startSample = Math.floor(i * BIT_DURATION * SAMPLE_RATE);
-                const samplesPerBit = Math.floor(BIT_DURATION * SAMPLE_RATE);
+            const process = () => {
+                if (!isListening) return;
 
-                for (let j = 0; j < samplesPerBit; j++) {
-                    const t = j / SAMPLE_RATE;
-                    channelData[startSample + j] = 0.5 * Math.sin(2 * Math.PI * freq * t);
-                }
-            }
+                analyser.getByteFrequencyData(dataArray);
+                drawSpectrum(dataArray, analyser.fftSize);
 
-            // 再生とプログレスバー更新
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioCtx.destination);
-            
-            const startTime = audioCtx.currentTime;
-            source.start(startTime);
+                const now = Date.now();
+                // 一定時間（1シンボルの間隔）ごとに周波数を判定[cite: 1]
+                if (now - lastProcessTime >= SYMBOL_DURATION * 1000) {
+                    
+                    const preambleMag = getFreqMagnitude(dataArray, FREQ_PREAMBLE, analyser.fftSize);
+                    const endMag = getFreqMagnitude(dataArray, FREQ_END, analyser.fftSize);
 
-            const interval = setInterval(() => {
-                const elapsed = audioCtx.currentTime - startTime;
-                const progress = Math.min(100, (elapsed / (bits.length * BIT_DURATION)) * 100);
-                
-                document.getElementById('sendFill').style.width = progress + '%';
-                document.getElementById('sendPercent').innerText = Math.floor(progress) + '%';
-
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    document.getElementById('sendStatus').innerText = "送信完了！";
-                    sendBtn.disabled = false;
-                }
-            }, 50);
-        }
-
-        // --- 受信処理 (Web Audio API + FFT) ---[cite: 1]
-        async function toggleListening() {
-            const btn = document.getElementById('listenBtn');
-            if (isListening) {
-                isListening = false;
-                btn.innerText = "マイク受信を開始";
-                document.getElementById('receiveProgress').style.display = 'none';
-                if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
-                return;
-            }
-
-            try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-                isListening = true;
-                btn.innerText = "受信停止";
-                document.getElementById('receiveProgress').style.display = 'block';
-
-                const source = audioCtx.createMediaStreamSource(mediaStream);
-                const analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 2048;
-                source.connect(analyser);
-
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                let receivedBits = "";
-                let lastBitTime = 0;
-
-                const processAudio = () => {
-                    if (!isListening) return;
-
-                    const now = Date.now();
-                    if (now - lastBitTime >= BIT_DURATION * 1000) {
-                        analyser.getByteFrequencyData(dataArray);
-
-                        // 周波数判定[cite: 1]
-                        const bin0 = Math.round(FREQ_0 / (SAMPLE_RATE / analyser.fftSize));
-                        const bin1 = Math.round(FREQ_1 / (SAMPLE_RATE / analyser.fftSize));
-
-                        const val0 = dataArray[bin0];
-                        const val1 = dataArray[bin1];
-
-                        if (val0 > 100 || val1 > 100) { // 信号の判定閾値
-                            const bit = val1 > val0 ? '1' : '0';[cite: 1]
-                            receivedBits += bit;
-                            lastBitTime = now;
-
-                            // 表示・復元更新
-                            document.getElementById('receiveStatus').innerText = `受信中 (${receivedBits.length} bits)...`;
-                            
-                            if (receivedBits.length % 8 === 0) {
-                                renderReceivedData(receivedBits);
+                    if (state === 'IDLE') {
+                        // プリアンブル（送信開始）を検知
+                        if (preambleMag > 120) {
+                            state = 'RECEIVING';
+                            receivedBits = [];
+                            consoleBox.innerText = "⚡ 信号を検知！データを受信中...\n";
+                            document.getElementById('receiveProgressWrapper').style.display = 'block';
+                            document.getElementById('receiveStatus').innerText = "受信中...";
+                        }
+                    } else if (state === 'RECEIVING') {
+                        // 終了シグナルを検知
+                        if (endMag > 120) {
+                            state = 'IDLE';
+                            decodeReceivedBits(receivedBits);
+                            document.getElementById('receiveStatus').innerText = "受信完了！";
+                        } else {
+                            // 4つのキャリア周波数のパワーを判定してビット復元[cite: 1]
+                            let symBits = [];
+                            for (let b = 0; b < BITS_PER_SYMBOL; b++) {
+                                const freq = FREQ_START + (b * FREQ_STEP);
+                                const mag = getFreqMagnitude(dataArray, freq, analyser.fftSize);
+                                symBits.push(mag > 90 ? 1 : 0);
                             }
+                            receivedBits.push(...symBits);
+                            
+                            // 進捗プログレス更新
+                            document.getElementById('receiveProgressFill').style.width = '100%';
+                            document.getElementById('receivePercent').innerText = `${receivedBits.length} bits`;
                         }
                     }
-                    requestAnimationFrame(processAudio);
-                };
+                    lastProcessTime = now;
+                }
+                animFrameId = requestAnimationFrame(process);
+            };
 
-                processAudio();
+            process();
 
-            } catch (err) {
-                alert("マイクアクセスの許可が必要です: " + err.message);
-            }
+        } catch (err) {
+            alert('マイクのアクセスに失敗しました: ' + err.message);
+        }
+    }
+
+    // 指定周波数の強度（マグニチュード）を取得[cite: 1]
+    function getFreqMagnitude(dataArray, freq, fftSize) {
+        const bin = Math.round(freq / (SAMPLE_RATE / fftSize));
+        return dataArray[bin] || 0;
+    }
+
+    // 受信ビットのテキスト/ファイル復元[cite: 1]
+    function decodeReceivedBits(bits) {
+        const consoleBox = document.getElementById('consoleBox');
+        if (bits.length < 8) {
+            consoleBox.innerText += "\n[エラー] 取得データが短すぎます。";
+            return;
         }
 
-        function renderReceivedData(bits) {
-            const bytes = new Uint8Array(bits.length / 8);
-            for (let i = 0; i < bits.length; i += 8) {
-                bytes[i / 8] = parseInt(bits.substr(i, 8), 2);
+        const bytes = new Uint8Array(Math.floor(bits.length / 8));
+        for (let i = 0; i < bytes.length; i++) {
+            let byte = 0;
+            for (let b = 0; b < 8; b++) {
+                byte = (byte << 1) | bits[i * 8 + b];
             }
-            const decodedText = new TextDecoder().decode(bytes);
-            document.getElementById('output').innerText = decodedText || "(解析中...)";
+            bytes[i] = byte;
         }
-    </script>
+
+        const decodedText = new TextDecoder().decode(bytes);
+        consoleBox.innerText += `\n✅ 復元完了 (${bytes.length} Bytes):\n${decodedText}`;
+    }
+
+    // スペクトラムアナライザ描画
+    let canvasCtx = null;
+    function drawSpectrum(dataArray, fftSize) {
+        const canvas = document.getElementById('visualizerCanvas');
+        const width = canvas.width;
+        const height = canvas.height;
+        canvasCtx.clearRect(0, 0, width, height);
+
+        const barWidth = (width / dataArray.length) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = (dataArray[i] / 255) * height;
+            canvasCtx.fillStyle = `rgb(56, 189, 248)`;
+            canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
+    }
+</script>
+
 </body>
 </html>
