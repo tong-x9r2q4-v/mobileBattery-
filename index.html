@@ -1,13 +1,4 @@
-import http.server
-import socketserver
-import json
-import base64
-import urllib.parse
-
-PORT = 8000
-
-# WebアプリケーションのHTML/JS/CSS（1ファイルで完結）
-HTML_PAGE = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -141,12 +132,12 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="container">
         <div>
             <h1>🔊 音響データ通信システム</h1>
-            <p class="subtitle">音波（Sine波/FFT解析）を使ってファイル・テキストを送受信します</p>
+            <p class="subtitle">音波（Sine波/FFT解析）を使ってファイル・テキストを送受信します[cite: 1]</p>
         </div>
 
         <!-- 送信セクション -->
         <div class="card">
-            <h2>1. 送信 (Sound Sender)</h2>
+            <h2>1. 送信 (Sound Sender)[cite: 1]</h2>
             <div class="file-upload" onclick="document.getElementById('fileInput').click()">
                 <span id="fileName">クリックしてファイルを選択（またはドロップ）</span>
                 <input type="file" id="fileInput" onchange="handleFileSelect(event)">
@@ -169,8 +160,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
         <!-- 受信セクション -->
         <div class="card">
-            <h2>2. 受信 (Sound Receiver)</h2>
-            <p style="font-size: 0.85rem; color: var(--text-sub);">マイク音声を自動解析してバイナリデータを復元します。</p>
+            <h2>2. 受信 (Sound Receiver)[cite: 1]</h2>
+            <p style="font-size: 0.85rem; color: var(--text-sub);">マイク音声を自動解析してバイナリデータを復元します[cite: 1]。</p>
             <button class="btn" id="listenBtn" onclick="toggleListening()">マイク受信を開始</button>
             
             <div class="progress-container" id="receiveProgress" style="display: none;">
@@ -190,9 +181,9 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <script>
         const SAMPLE_RATE = 44100;
-        const FREQ_0 = 1000; // Bit '0' の周波数 (Hz)
-        const FREQ_1 = 2000; // Bit '1' の周波数 (Hz)
-        const BIT_DURATION = 0.1; // 1ビットの長さ（秒）
+        const FREQ_0 = 1000; // Bit '0' の周波数 (Hz)[cite: 1]
+        const FREQ_1 = 2000; // Bit '1' の周波数 (Hz)[cite: 1]
+        const BIT_DURATION = 0.1; // 1ビットの長さ（秒）[cite: 1]
 
         let selectedData = null;
         let audioCtx = null;
@@ -226,7 +217,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // ビット列への変換
+            // ビット列への変換[cite: 1]
             let bits = "";
             for (let b of dataBytes) {
                 bits += b.toString(2).padStart(8, '0');
@@ -242,7 +233,7 @@ HTML_PAGE = """<!DOCTYPE html>
             const channelData = buffer.getChannelData(0);
 
             for (let i = 0; i < bits.length; i++) {
-                const freq = bits[i] === '1' ? FREQ_1 : FREQ_0;
+                const freq = bits[i] === '1' ? FREQ_1 : FREQ_0;[cite: 1]
                 const startSample = Math.floor(i * BIT_DURATION * SAMPLE_RATE);
                 const samplesPerBit = Math.floor(BIT_DURATION * SAMPLE_RATE);
 
@@ -275,7 +266,7 @@ HTML_PAGE = """<!DOCTYPE html>
             }, 50);
         }
 
-        // --- 受信処理 (Web Audio API + FFT) ---
+        // --- 受信処理 (Web Audio API + FFT) ---[cite: 1]
         async function toggleListening() {
             const btn = document.getElementById('listenBtn');
             if (isListening) {
@@ -311,7 +302,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     if (now - lastBitTime >= BIT_DURATION * 1000) {
                         analyser.getByteFrequencyData(dataArray);
 
-                        // 周波数判定
+                        // 周波数判定[cite: 1]
                         const bin0 = Math.round(FREQ_0 / (SAMPLE_RATE / analyser.fftSize));
                         const bin1 = Math.round(FREQ_1 / (SAMPLE_RATE / analyser.fftSize));
 
@@ -319,7 +310,7 @@ HTML_PAGE = """<!DOCTYPE html>
                         const val1 = dataArray[bin1];
 
                         if (val0 > 100 || val1 > 100) { // 信号の判定閾値
-                            const bit = val1 > val0 ? '1' : '0';
+                            const bit = val1 > val0 ? '1' : '0';[cite: 1]
                             receivedBits += bit;
                             lastBitTime = now;
 
@@ -352,19 +343,3 @@ HTML_PAGE = """<!DOCTYPE html>
     </script>
 </body>
 </html>
-"""
-
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(HTML_PAGE.encode('utf-8'))
-
-if __name__ == "__main__":
-    print(f"==================================================")
-    print(f" Webアプリを起動しました: http://localhost:{PORT}")
-    print(f" 外部ライブラリ不要（標準ライブラリのみで動作中）")
-    print(f"==================================================")
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        httpd.serve_forever()
