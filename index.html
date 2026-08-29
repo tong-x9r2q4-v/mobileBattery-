@@ -3,169 +3,173 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>TongAccount</title>
+  <title>TongAccount NFC</title>
   <style>
-    /* ロゴのスタイル（タップしやすいように cursor ポインターを指定） */
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px 15px;
+      background-color: #f7f9fc;
+    }
+    /* ロゴ（5回タップ対象） */
     .app-logo {
+      font-size: 32px;
+      color: #007bff;
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
+      margin-bottom: 20px;
     }
-    /* 書き込みモーダル／エリア（初期状態は非表示） */
+    /* カード情報表示エリア */
+    .card-box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 0 auto 20px;
+    }
+    #nfcStatus {
+      font-size: 14px;
+      color: #666;
+    }
+    #nfcData {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    /* 隠し書き込みエリア（初期状態は非表示） */
     #nfcWriteArea {
       display: none;
-      margin-top: 15px;
+      background: #eef6ff;
+      border: 2px dashed #007bff;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    input[type="text"] {
+      width: 80%;
       padding: 10px;
-      border: 1px solid #007bff;
-      background-color: #f0f8ff;
-      border-radius: 5px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:active {
+      background-color: #0056b3;
     }
   </style>
 </head>
 <body>
 
-  <!-- ① ロゴ要素（5回タップ対象） -->
+  <!-- ① ロゴ要素（5回タップで裏モード解禁） -->
   <h1 class="app-logo" id="appLogo" onclick="handleLogoTap()">TongAccount</h1>
 
-  <!-- 既存のログインフォーム等 -->
-  <div id="login-container">
-    <form id="loginForm">
-      <input type="text" id="userId" placeholder="ユーザーID" required>
-      <input type="password" id="password" placeholder="パスワード" required>
-      <button type="submit" id="submitBtn">ログイン</button>
-    </form>
+  <!-- ② 情報表示エリア（NFCをかざすと表示） -->
+  <div class="card-box">
+    <div id="nfcStatus">📲 NFCカードをかざしてください...</div>
+    <div id="nfcData">---</div>
   </div>
 
-  <!-- ② 情報表示エリア（NFCをかざすとここに表示） -->
-  <div id="nfcInfoArea" style="margin-top:15px; font-weight:bold;"></div>
-
-  <!-- ③ 隠し書き込みエリア（ロゴ5回タップで出現） -->
+  <!-- ③ 隠し書き込みエリア（5回タップで出現） -->
   <div id="nfcWriteArea">
-    <h3>⚙️ NFC書き込みモード（管理者）</h3>
-    <input type="text" id="nfcDataInput" placeholder="カードに書き込むデータ">
-    <button onclick="writeNfcCard()">NFCカードに書き込む</button>
+    <h3 style="margin-top:0;">⚙️ NFC書き込みモード</h3>
+    <input type="text" id="nfcInput" placeholder="書き込む文字列を入力">
+    <br>
+    <button onclick="writeNfcCard()">カードに書き込む</button>
   </div>
 
   <script>
-    /* ==========================================
-       NFC読み取り ＆ 5回タップ書き込み機能
-       ========================================== */
-    
     var tapCount = 0;
     var tapTimer = null;
 
-    // ページの読み込み完了時にNFC読み取りを開始
+    // ページ読み込み時にNFC読み取りを開始
     document.addEventListener('DOMContentLoaded', function() {
-      // ログインフォームの白画面防止登録
-      var form = document.getElementById('loginForm');
-      if (form) form.addEventListener('submit', handleLogin);
-
-      // NFC自動読み取りの開始
       startNfcScan();
     });
 
-    // --- 1. ロゴ5回タップ判定ロジック ---
+    // --- 1. ロゴ5回タップの判定 ---
     function handleLogoTap() {
       tapCount++;
-      
-      // 2秒間タップがなければカウントをリセット
       clearTimeout(tapTimer);
       tapTimer = setTimeout(function() {
         tapCount = 0;
-      }, 2000);
+      }, 2000); // 2秒以内の連打をカウント
 
-      // 5回タップ達成
       if (tapCount >= 5) {
         tapCount = 0;
-        alert("🔒 管理者機能：NFC書き込みモードが有効化されました。");
-        var writeArea = document.getElementById('nfcWriteArea');
-        if (writeArea) {
-          writeArea.style.display = 'block'; // 書き込み画面を表示
-        }
+        alert("🔒 書き込みモードが有効になりました。");
+        document.getElementById('nfcWriteArea').style.display = 'block';
       }
     }
 
-    // --- 2. NFC読み取り機能 (Web NFC API) ---
+    // --- 2. NFC読み取り（Web NFC API） ---
     async function startNfcScan() {
+      var statusEl = document.getElementById('nfcStatus');
+      var dataEl = document.getElementById('nfcData');
+
       if ('NDEFReader' in window) {
         try {
           const ndef = new NDEFReader();
           await ndef.scan();
-          
+          statusEl.innerText = "✅ NFC待機中：カードを背面にかざしてください";
+
           ndef.addEventListener("reading", ({ message, serialNumber }) => {
             let nfcContent = "";
             for (const record of message.records) {
               const textDecoder = new TextDecoder(record.encoding);
               nfcContent += textDecoder.decode(record.data);
             }
-            
-            // 取得した情報を表示エリアに出力
-            var infoArea = document.getElementById('nfcInfoArea');
-            if (infoArea) {
-              infoArea.innerText = "🎴 NFC読み取り成功: " + (nfcContent || ("ID: " + serialNumber));
-            }
 
-            // 必要に応じてGAS側へデータ送信
-            /*
+            var textToShow = nfcContent || ("ID: " + serialNumber);
+            dataEl.innerText = textToShow;
+            statusEl.innerText = "🎴 読み取り成功！";
+
+            // 必要に応じてGAS側に読み取りデータを送る場合
             google.script.run
-              .withSuccessHandler(function(res){ ... })
-              .processNfcData(nfcContent || serialNumber);
-            */
+              .withFailureHandler(function(err){ console.error(err); })
+              .saveNfcLog(textToShow);
           });
         } catch (error) {
-          console.log("NFCスキャン開始エラー:", error);
+          statusEl.innerText = "❌ スキャン開始失敗: " + error.message;
         }
       } else {
-        console.log("このブラウザ・端末はWeb NFCに対応していません。");
+        statusEl.innerText = "⚠️ この端末/ブラウザはWeb NFCに対応していません(Android Chrome等をご利用ください)";
       }
     }
 
-    // --- 3. NFC書き込み機能 ---
+    // --- 3. NFC書き込み ---
     async function writeNfcCard() {
-      var inputData = document.getElementById('nfcDataInput').value;
-      if (!inputData) {
-        alert("書き込むデータを入力してください。");
+      var textToWrite = document.getElementById('nfcInput').value;
+      if (!textToWrite) {
+        alert("書き込む文字を入力してください。");
         return;
       }
 
       if ('NDEFReader' in window) {
         try {
           const ndef = new NDEFReader();
-          alert("書き込み準備完了：NFCカードを端末にかざしてください...");
-          await ndef.write(inputData);
-          alert("✅ NFCカードへの書き込みが完了しました！");
+          alert("NFCカードをスマホの背面にかざしてください...");
+          await ndef.write(textToWrite);
+          alert("🎉 書き込みが完了しました！");
         } catch (error) {
-          alert("書き込みに失敗しました: " + error.message);
+          alert("書き込み失敗: " + error.message);
         }
       } else {
-        alert("この端末・ブラウザはNFC書き込みに対応していません。");
+        alert("この端末はNFC書き込みに対応していません。");
       }
-    }
-
-    // --- 既存のログイン処理（白画面防止版） ---
-    function handleLogin(event) {
-      if (event) event.preventDefault();
-      var userId = document.getElementById('userId').value;
-      var userPass = document.getElementById('password').value;
-      var submitBtn = document.getElementById('submitBtn');
-
-      if (submitBtn) submitBtn.disabled = true;
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          if (submitBtn) submitBtn.disabled = false;
-          if (response && response.success) {
-            if (response.redirectUrl) window.open(response.redirectUrl, '_top');
-            else window.top.location.reload();
-          } else {
-            alert(response ? response.message : "ログイン失敗");
-          }
-        })
-        .withFailureHandler(function(error) {
-          if (submitBtn) submitBtn.disabled = false;
-          alert("通信エラー: " + (error.message || error));
-        })
-        .processLogin(userId, userPass);
     }
   </script>
 </body>
