@@ -1,395 +1,172 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBER BROADCAST // P2P RADIO</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>TongAccount</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap');
-
-    :root {
-      --bg: #050811;
-      --panel: #0d1527;
-      --border: #1e2d4a;
-      --neon-blue: #00f0ff;
-      --neon-pink: #ff0055;
-      --neon-green: #00ff66;
-      --text: #e2e8f0;
-      --dim: #475569;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Rajdhani', sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      background-image: 
-        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.15), transparent 70%),
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 100% 100%, 30px 30px, 30px 30px;
-    }
-
-    .rack {
-      background: var(--panel);
-      width: 100%;
-      max-width: 420px;
-      padding: 30px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      box-shadow: 
-        0 0 30px rgba(0, 0, 0, 0.8),
-        inset 0 1px 1px rgba(255, 255, 255, 0.1),
-        0 0 15px rgba(0, 240, 255, 0.1);
-      position: relative;
-    }
-
-    /* 角のボルト装飾 */
-    .rack::before, .rack::after {
-      content: '';
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      background: #1e293b;
-      border: 1px solid #475569;
-      border-radius: 50%;
-    }
-    .rack::before { top: 12px; left: 12px; }
-    .rack::after { top: 12px; right: 12px; }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 15px;
-      margin-bottom: 25px;
-    }
-
-    .title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 900;
-      letter-spacing: 2px;
-      color: var(--neon-blue);
-      text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-    }
-
-    /* ON AIR サイン */
-    .on-air {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 4px;
-      border: 1px solid var(--dim);
-      color: var(--dim);
-      background: rgba(0,0,0,0.4);
-      transition: all 0.3s ease;
-    }
-
-    .on-air.active {
-      color: #fff;
-      background: var(--neon-pink);
-      border-color: var(--neon-pink);
-      box-shadow: 0 0 15px var(--neon-pink);
-      animation: blink 1s infinite alternate;
-    }
-
-    @keyframes blink {
-      0% { opacity: 0.8; }
-      100% { opacity: 1; filter: drop-shadow(0 0 8px var(--neon-pink)); }
-    }
-
-    .control-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-
-    .input-box {
-      position: relative;
-    }
-
-    input[type="password"] {
-      width: 100%;
-      padding: 14px;
-      background: #050a14;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--neon-blue);
-      font-family: 'Orbitron', sans-serif;
-      font-size: 0.9rem;
-      letter-spacing: 3px;
-      text-align: center;
-      outline: none;
-      transition: all 0.3s;
-    }
-
-    input[type="password"]:focus {
-      border-color: var(--neon-blue);
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
-    }
-
-    .btn-launch {
-      width: 100%;
-      padding: 16px;
-      background: linear-gradient(135deg, #0055ff, #00f0ff);
-      border: none;
-      border-radius: 6px;
-      color: #000;
-      font-family: 'Orbitron', sans-serif;
-      font-weight: 900;
-      font-size: 1rem;
-      letter-spacing: 2px;
+    /* ロゴのスタイル（タップしやすいように cursor ポインターを指定） */
+    .app-logo {
       cursor: pointer;
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
-      transition: all 0.2s;
+      user-select: none;
+      -webkit-user-select: none;
     }
-
-    .btn-launch:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 25px rgba(0, 240, 255, 0.7);
-    }
-
-    .btn-launch:active {
-      transform: translateY(0);
-    }
-
-    .btn-launch:disabled {
-      background: #1e293b;
-      color: #475569;
-      box-shadow: none;
-      cursor: not-allowed;
-    }
-
-    /* イコライザー / 視覚メーター */
-    .visualizer-box {
-      background: #030712;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 15px;
-    }
-
-    .vis-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: var(--dim);
-      margin-bottom: 10px;
-      letter-spacing: 1px;
-    }
-
-    .meter-bar {
-      height: 12px;
-      background: #0f172a;
-      border-radius: 3px;
-      overflow: hidden;
-      display: flex;
-      gap: 2px;
-      padding: 2px;
-    }
-
-    .meter-block {
-      flex: 1;
-      background: #1e293b;
-      border-radius: 1px;
-      transition: background 0.05s;
-    }
-
-    .status-monitor {
-      margin-top: 20px;
-      font-size: 0.85rem;
-      color: #94a3b8;
-      text-align: center;
-      min-height: 1.2em;
-      letter-spacing: 1px;
+    /* 書き込みモーダル／エリア（初期状態は非表示） */
+    #nfcWriteArea {
+      display: none;
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #007bff;
+      background-color: #f0f8ff;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
 
-  <div class="rack">
-    <div class="header">
-      <div class="title">SYSTEM // 5326</div>
-      <div id="onAirTag" class="on-air">OFFLINE</div>
-    </div>
+  <!-- ① ロゴ要素（5回タップ対象） -->
+  <h1 class="app-logo" id="appLogo" onclick="handleLogoTap()">TongAccount</h1>
 
-    <div class="control-panel">
-      <div class="input-box">
-        <input type="password" id="passInput" placeholder="PASSCODE (KEY: 0000)">
-      </div>
-      <button id="joinBtn" class="btn-launch">CONNECT</button>
-    </div>
-
-    <div class="visualizer-box">
-      <div class="vis-header">
-        <span>AUDIO SIGNAL</span>
-        <span id="dbValue">00 DB</span>
-      </div>
-      <div class="meter-bar" id="meterBar">
-        <!-- JSでブロック（イコライザー風）を生成 -->
-      </div>
-    </div>
-
-    <div id="statusText" class="status-monitor">SYSTEM READY // STANDBY</div>
+  <!-- 既存のログインフォーム等 -->
+  <div id="login-container">
+    <form id="loginForm">
+      <input type="text" id="userId" placeholder="ユーザーID" required>
+      <input type="password" id="password" placeholder="パスワード" required>
+      <button type="submit" id="submitBtn">ログイン</button>
+    </form>
   </div>
 
-  <audio id="remoteAudio" autoplay playsinline></audio>
+  <!-- ② 情報表示エリア（NFCをかざすとここに表示） -->
+  <div id="nfcInfoArea" style="margin-top:15px; font-weight:bold;"></div>
+
+  <!-- ③ 隠し書き込みエリア（ロゴ5回タップで出現） -->
+  <div id="nfcWriteArea">
+    <h3>⚙️ NFC書き込みモード（管理者）</h3>
+    <input type="text" id="nfcDataInput" placeholder="カードに書き込むデータ">
+    <button onclick="writeNfcCard()">NFCカードに書き込む</button>
+  </div>
 
   <script>
-    const TARGET_ID = '5326';
-    const PEER_CONFIG = {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      }
-    };
+    /* ==========================================
+       NFC読み取り ＆ 5回タップ書き込み機能
+       ========================================== */
+    
+    var tapCount = 0;
+    var tapTimer = null;
 
-    const joinBtn = document.getElementById('joinBtn');
-    const passInput = document.getElementById('passInput');
-    const statusText = document.getElementById('statusText');
-    const onAirTag = document.getElementById('onAirTag');
-    const meterBar = document.getElementById('meterBar');
-    const dbValue = document.getElementById('dbValue');
-    const remoteAudio = document.getElementById('remoteAudio');
+    // ページの読み込み完了時にNFC読み取りを開始
+    document.addEventListener('DOMContentLoaded', function() {
+      // ログインフォームの白画面防止登録
+      var form = document.getElementById('loginForm');
+      if (form) form.addEventListener('submit', handleLogin);
 
-    // メーターのLEDセグメント（15分割）を作成
-    const BLOCK_COUNT = 15;
-    for (let i = 0; i < BLOCK_COUNT; i++) {
-      const block = document.createElement('div');
-      block.className = 'meter-block';
-      meterBar.appendChild(block);
-    }
-    const blocks = document.querySelectorAll('.meter-block');
-
-    let peer = null;
-    let activeCall = null;
-
-    // 音量に応じてLEDブロックを光らせる処理
-    function setupMeter(stream) {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 32;
-        src.connect(analyser);
-
-        const data = new Uint8Array(analyser.frequencyBinCount);
-
-        function update() {
-          analyser.getByteFrequencyData(data);
-          let sum = data.reduce((a, b) => a + b, 0);
-          let avg = sum / data.length;
-          let level = Math.floor((avg / 128) * BLOCK_COUNT);
-
-          dbValue.textContent = `${Math.min(99, Math.floor(avg))} DB`;
-
-          blocks.forEach((block, index) => {
-            if (index < level) {
-              if (index > 11) block.style.background = 'var(--neon-pink)';
-              else if (index > 8) block.style.background = '#ffaa00';
-              else block.style.background = 'var(--neon-green)';
-            } else {
-              block.style.background = '#1e293b';
-            }
-          });
-          requestAnimationFrame(update);
-        }
-        update();
-      } catch(e) { console.error(e); }
-    }
-
-    joinBtn.addEventListener('click', async () => {
-      const code = passInput.value.trim();
-      joinBtn.disabled = true;
-
-      if (code === '0000') {
-        // --- 配信者 ---
-        statusText.textContent = 'INITIALIZING AUDIO INPUT...';
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          setupMeter(stream);
-
-          peer = new Peer(TARGET_ID, PEER_CONFIG);
-
-          peer.on('open', () => {
-            statusText.textContent = 'BROADCASTING ACTIVE // WAITING FOR LISTENER';
-            onAirTag.textContent = 'ON AIR';
-            onAirTag.classList.add('active');
-          });
-
-          peer.on('call', (call) => {
-            if (activeCall) {
-              call.close();
-              return;
-            }
-            call.answer(stream);
-            activeCall = call;
-            statusText.textContent = 'LISTENER CONNECTED // TRANSMITTING';
-
-            call.on('close', () => {
-              activeCall = null;
-              statusText.textContent = 'LISTENER DISCONNECTED // WAITING';
-            });
-          });
-
-          peer.on('error', (err) => {
-            statusText.textContent = 'ERROR: ' + err.type;
-            joinBtn.disabled = false;
-          });
-
-        } catch (err) {
-          statusText.textContent = 'ERROR: MIC PERMISSION DENIED';
-          joinBtn.disabled = false;
-        }
-
-      } else {
-        // --- リスナー ---
-        statusText.textContent = 'CONNECTING TO FREQUENCY 5326...';
-        peer = new Peer(PEER_CONFIG);
-
-        peer.on('open', () => {
-          const ctx = new AudioContext();
-          const dest = ctx.createMediaStreamDestination();
-          const call = peer.call(TARGET_ID, dest.stream);
-
-          call.on('stream', (remoteStream) => {
-            remoteAudio.srcObject = remoteStream;
-            remoteAudio.play().then(() => {
-              statusText.textContent = 'RECEIVING SIGNAL // LIVE';
-              onAirTag.textContent = 'LIVE';
-              onAirTag.classList.add('active');
-              setupMeter(remoteStream);
-            }).catch(() => {
-              statusText.textContent = 'CLICK ANYWHERE TO ENABLE AUDIO';
-            });
-          });
-
-          call.on('close', () => {
-            statusText.textContent = 'SIGNAL LOST // BROADCAST ENDED';
-            onAirTag.textContent = 'OFFLINE';
-            onAirTag.classList.remove('active');
-            joinBtn.disabled = false;
-          });
-
-          peer.on('error', () => {
-            statusText.textContent = 'SIGNAL FAILED // HOST OFFLINE';
-            joinBtn.disabled = false;
-          });
-        });
-      }
+      // NFC自動読み取りの開始
+      startNfcScan();
     });
+
+    // --- 1. ロゴ5回タップ判定ロジック ---
+    function handleLogoTap() {
+      tapCount++;
+      
+      // 2秒間タップがなければカウントをリセット
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(function() {
+        tapCount = 0;
+      }, 2000);
+
+      // 5回タップ達成
+      if (tapCount >= 5) {
+        tapCount = 0;
+        alert("🔒 管理者機能：NFC書き込みモードが有効化されました。");
+        var writeArea = document.getElementById('nfcWriteArea');
+        if (writeArea) {
+          writeArea.style.display = 'block'; // 書き込み画面を表示
+        }
+      }
+    }
+
+    // --- 2. NFC読み取り機能 (Web NFC API) ---
+    async function startNfcScan() {
+      if ('NDEFReader' in window) {
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          
+          ndef.addEventListener("reading", ({ message, serialNumber }) => {
+            let nfcContent = "";
+            for (const record of message.records) {
+              const textDecoder = new TextDecoder(record.encoding);
+              nfcContent += textDecoder.decode(record.data);
+            }
+            
+            // 取得した情報を表示エリアに出力
+            var infoArea = document.getElementById('nfcInfoArea');
+            if (infoArea) {
+              infoArea.innerText = "🎴 NFC読み取り成功: " + (nfcContent || ("ID: " + serialNumber));
+            }
+
+            // 必要に応じてGAS側へデータ送信
+            /*
+            google.script.run
+              .withSuccessHandler(function(res){ ... })
+              .processNfcData(nfcContent || serialNumber);
+            */
+          });
+        } catch (error) {
+          console.log("NFCスキャン開始エラー:", error);
+        }
+      } else {
+        console.log("このブラウザ・端末はWeb NFCに対応していません。");
+      }
+    }
+
+    // --- 3. NFC書き込み機能 ---
+    async function writeNfcCard() {
+      var inputData = document.getElementById('nfcDataInput').value;
+      if (!inputData) {
+        alert("書き込むデータを入力してください。");
+        return;
+      }
+
+      if ('NDEFReader' in window) {
+        try {
+          const ndef = new NDEFReader();
+          alert("書き込み準備完了：NFCカードを端末にかざしてください...");
+          await ndef.write(inputData);
+          alert("✅ NFCカードへの書き込みが完了しました！");
+        } catch (error) {
+          alert("書き込みに失敗しました: " + error.message);
+        }
+      } else {
+        alert("この端末・ブラウザはNFC書き込みに対応していません。");
+      }
+    }
+
+    // --- 既存のログイン処理（白画面防止版） ---
+    function handleLogin(event) {
+      if (event) event.preventDefault();
+      var userId = document.getElementById('userId').value;
+      var userPass = document.getElementById('password').value;
+      var submitBtn = document.getElementById('submitBtn');
+
+      if (submitBtn) submitBtn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (submitBtn) submitBtn.disabled = false;
+          if (response && response.success) {
+            if (response.redirectUrl) window.open(response.redirectUrl, '_top');
+            else window.top.location.reload();
+          } else {
+            alert(response ? response.message : "ログイン失敗");
+          }
+        })
+        .withFailureHandler(function(error) {
+          if (submitBtn) submitBtn.disabled = false;
+          alert("通信エラー: " + (error.message || error));
+        })
+        .processLogin(userId, userPass);
+    }
   </script>
 </body>
 </html>
