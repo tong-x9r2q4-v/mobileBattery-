@@ -2,38 +2,228 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>P2Pラジオ配信システム</title>
-  <!-- PeerJS ライブラリの読み込み -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Radio Station</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-    .status { font-weight: bold; margin-top: 10px; }
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --accent-live: #ef4444;
+      --text: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 400px;
+      padding: 32px 24px;
+      border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #334155;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+
+    .dot.active {
+      background: var(--accent-live);
+      box-shadow: 0 0 10px var(--accent-live);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #fff;
+      font-size: 1rem;
+      text-align: center;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent);
+      color: #0f172a;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: #475569; cursor: not-allowed; }
+
+    /* 音量インジケーター */
+    .meter-container {
+      margin-top: 24px;
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .meter-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .meter-bar {
+      height: 8px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-live));
+      transition: width 0.1s ease-out;
+    }
+
+    .status-text {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      min-height: 1.2em;
+    }
   </style>
 </head>
 <body>
-  <h1>P2P ラジオシステム</h1>
 
-  <div>
-    <label for="passInput">配信者コード (リスナーは空欄のまま):</label><br>
-    <input type="password" id="passInput" placeholder="0000">
-    <button id="joinBtn">参加</button>
+  <div class="container">
+    <div class="logo">Live Radio</div>
+    <h1>P2P Voice Station</h1>
+
+    <div class="badge">
+      <div id="statusDot" class="dot"></div>
+      <span id="badgeText">OFFLINE</span>
+    </div>
+
+    <div class="input-group">
+      <input type="password" id="passInput" placeholder="パスコード（リスナーは空欄）">
+    </div>
+
+    <button id="joinBtn">配信・試聴を開始</button>
+
+    <div class="meter-container">
+      <span class="meter-label">AUDIO LEVEL（声が入ると動きます）</span>
+      <div class="meter-bar">
+        <div id="meterFill" class="meter-fill"></div>
+      </div>
+    </div>
+
+    <div id="statusText" class="status-text">ボタンを押して参加してください</div>
   </div>
 
-  <div id="status" class="status">状態: 未接続</div>
-
-  <!-- リスナーが音声を聞くための audio タグ -->
-  <audio id="remoteAudio" autoplay controls style="margin-top: 20px; display: none;"></audio>
+  <audio id="remoteAudio" autoplay></audio>
 
   <script>
-    const TARGET_ID = '5326'; // 固定配信ID
+    const TARGET_ID = '5326';
     const joinBtn = document.getElementById('joinBtn');
     const passInput = document.getElementById('passInput');
-    const statusDiv = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const badgeText = document.getElementById('badgeText');
+    const statusDot = document.getElementById('statusDot');
+    const meterFill = document.getElementById('meterFill');
     const remoteAudio = document.getElementById('remoteAudio');
 
     let peer = null;
     let localStream = null;
-    let activeCall = null; // 現在接続中の通話オブジェクト
+    let activeCall = null;
+    let audioContext = null;
+
+    // 音量メーター（マイク・受信音の可視化）を設定
+    function setupAudioMeter(stream) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      function updateMeter() {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        let average = sum / dataArray.length;
+        let volume = Math.min(100, Math.round((average / 128) * 100));
+        meterFill.style.width = volume + '%';
+        requestAnimationFrame(updateMeter);
+      }
+      updateMeter();
+    }
 
     joinBtn.addEventListener('click', async () => {
       const code = passInput.value.trim();
@@ -41,96 +231,82 @@
 
       if (code === '0000') {
         // --- 配信者処理 ---
-        statusDiv.textContent = '状態: マイクを準備中...';
+        statusText.textContent = 'マイクを準備中...';
         try {
-          // マイク音声の取得
-          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          
-          // ID「5326」でPeerを初期化
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setupAudioMeter(localStream); // 自分のマイク音量を表示
+
           peer = new Peer(TARGET_ID);
 
-          peer.on('open', (id) => {
-            statusDiv.textContent = `状態: 配信中 (ID: ${id}) - リスナーの接続を待っています...`;
+          peer.on('open', () => {
+            statusText.textContent = '配信中：リスナーの接続を待っています';
+            badgeText.textContent = 'BROADCASTING';
+            statusDot.classList.add('active');
           });
 
-          // リスナーからの着信処理
           peer.on('call', (call) => {
-            // リスナー制限: すでに誰か接続している場合は切断して拒否
             if (activeCall) {
-              call.close();
+              call.close(); // 1人制限
               return;
             }
-
-            // 1人目のリスナーを着信許可し、自分のマイク音声を送る
             call.answer(localStream);
             activeCall = call;
-            statusDiv.textContent = '状態: 配信中 (リスナーが1人聴取中)';
+            statusText.textContent = 'リスナーが1人接続しました！';
 
-            // リスナーが切断したときの処理
             call.on('close', () => {
               activeCall = null;
-              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
-            });
-            call.on('error', () => {
-              activeCall = null;
-              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
+              statusText.textContent = 'リスナーが切断しました';
             });
           });
 
           peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-              statusDiv.textContent = 'エラー: ID 5326 はすでに使われています（既に配信者が存在します）';
+              statusText.textContent = 'エラー: 配信ID 5326 は既に使用されています';
             } else {
-              statusDiv.textContent = `エラー: ${err.message}`;
+              statusText.textContent = 'エラー: ' + err.message;
             }
             joinBtn.disabled = false;
           });
 
         } catch (err) {
-          statusDiv.textContent = 'エラー: マイクの取得に失敗しました';
+          statusText.textContent = 'マイクの許可が必要です';
           joinBtn.disabled = false;
         }
 
       } else {
         // --- リスナー処理 ---
-        statusDiv.textContent = '状態: 配信者(5326)に接続中...';
-        
-        // ランダムなIDで自分のPeerを生成
+        statusText.textContent = '配信者 (5326) に接続中...';
         peer = new Peer();
 
         peer.on('open', () => {
-          // ダミーの空ストリームまたは受信のみでCallを発信
-          // PeerJSではMediaStreamを渡す必要があるため、空のMediaStreamを作成
-          const emptyStream = new MediaStream();
-          const call = peer.call(TARGET_ID, emptyStream);
+          // 受信専用のダミーストリーム送信
+          const dummyStream = new MediaStream();
+          const call = peer.call(TARGET_ID, dummyStream);
 
-          if (!call) {
-            statusDiv.textContent = 'エラー: 接続を送信できませんでした';
-            joinBtn.disabled = false;
-            return;
-          }
-
-          // 配信者から音声が送られてきたとき
           call.on('stream', (remoteStream) => {
             remoteAudio.srcObject = remoteStream;
-            remoteAudio.style.display = 'block';
-            statusDiv.textContent = '状態: ラジオを受信中';
+            
+            // ブラウザの自動再生ブロック対策
+            remoteAudio.play().then(() => {
+              statusText.textContent = 'ラジオを受信中';
+              badgeText.textContent = 'LIVE';
+              statusDot.classList.add('active');
+              setupAudioMeter(remoteStream); // 受信音量を表示
+            }).catch(() => {
+              statusText.textContent = '画面を1回タップして音声を許可してください';
+            });
           });
 
           call.on('close', () => {
-            statusDiv.textContent = '状態: 配信が終了したか、満員（1人制限）のため切断されました';
-            remoteAudio.style.display = 'none';
-            joinBtn.disabled = false;
-          });
-
-          call.on('error', (err) => {
-            statusDiv.textContent = `エラー: ${err.message}`;
+            statusText.textContent = '配信が終了したか、満員です';
+            badgeText.textContent = 'OFFLINE';
+            statusDot.classList.remove('active');
             joinBtn.disabled = false;
           });
         });
 
-        peer.on('error', (err) => {
-          statusDiv.textContent = 'エラー: 配信者(5326)が見つからないか、接続できませんでした';
+        peer.on('error', () => {
+          statusText.textContent = '配信者がオフラインです';
           joinBtn.disabled = false;
         });
       }
