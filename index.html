@@ -2,136 +2,391 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ラジオ配信システム</title>
-  <!-- PeerJS ライブラリの読み込み -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER BROADCAST // P2P RADIO</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-    .status { font-weight: bold; margin-top: 10px; }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap');
+
+    :root {
+      --bg: #050811;
+      --panel: #0d1527;
+      --border: #1e2d4a;
+      --neon-blue: #00f0ff;
+      --neon-pink: #ff0055;
+      --neon-green: #00ff66;
+      --text: #e2e8f0;
+      --dim: #475569;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.15), transparent 70%),
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 30px 30px, 30px 30px;
+    }
+
+    .rack {
+      background: var(--panel);
+      width: 100%;
+      max-width: 420px;
+      padding: 30px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 
+        0 0 30px rgba(0, 0, 0, 0.8),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1),
+        0 0 15px rgba(0, 240, 255, 0.1);
+      position: relative;
+    }
+
+    /* 角のボルト装飾 */
+    .rack::before, .rack::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 50%;
+    }
+    .rack::before { top: 12px; left: 12px; }
+    .rack::after { top: 12px; right: 12px; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+
+    .title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--neon-blue);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    }
+
+    /* ON AIR サイン */
+    .on-air {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--dim);
+      color: var(--dim);
+      background: rgba(0,0,0,0.4);
+      transition: all 0.3s ease;
+    }
+
+    .on-air.active {
+      color: #fff;
+      background: var(--neon-pink);
+      border-color: var(--neon-pink);
+      box-shadow: 0 0 15px var(--neon-pink);
+      animation: blink 1s infinite alternate;
+    }
+
+    @keyframes blink {
+      0% { opacity: 0.8; }
+      100% { opacity: 1; filter: drop-shadow(0 0 8px var(--neon-pink)); }
+    }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .input-box {
+      position: relative;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 14px;
+      background: #050a14;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--neon-blue);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 3px;
+      text-align: center;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    .btn-launch {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #0055ff, #00f0ff);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+      transition: all 0.2s;
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.7);
+    }
+
+    .btn-launch:active {
+      transform: translateY(0);
+    }
+
+    .btn-launch:disabled {
+      background: #1e293b;
+      color: #475569;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* イコライザー / 視覚メーター */
+    .visualizer-box {
+      background: #030712;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 15px;
+    }
+
+    .vis-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--dim);
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .meter-bar {
+      height: 12px;
+      background: #0f172a;
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+    }
+
+    .meter-block {
+      flex: 1;
+      background: #1e293b;
+      border-radius: 1px;
+      transition: background 0.05s;
+    }
+
+    .status-monitor {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      text-align: center;
+      min-height: 1.2em;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
-  <h1>P2P ラジオシステム</h1>
 
-  <div>
-    <label for="passInput">配信者コード (リスナーは空欄のまま):</label><br>
-    <input type="password" id="passInput" placeholder="0000">
-    <button id="joinBtn">参加</button>
+  <div class="rack">
+    <div class="header">
+      <div class="title">SYSTEM // 5326</div>
+      <div id="onAirTag" class="on-air">OFFLINE</div>
+    </div>
+
+    <div class="control-panel">
+      <div class="input-box">
+        <input type="password" id="passInput" placeholder="PASSCODE (KEY: 0000)">
+      </div>
+      <button id="joinBtn" class="btn-launch">CONNECT</button>
+    </div>
+
+    <div class="visualizer-box">
+      <div class="vis-header">
+        <span>AUDIO SIGNAL</span>
+        <span id="dbValue">00 DB</span>
+      </div>
+      <div class="meter-bar" id="meterBar">
+        <!-- JSでブロック（イコライザー風）を生成 -->
+      </div>
+    </div>
+
+    <div id="statusText" class="status-monitor">SYSTEM READY // STANDBY</div>
   </div>
 
-  <div id="status" class="status">状態: 未接続</div>
-
-  <!-- リスナーが音声を聞くための audio タグ -->
-  <audio id="remoteAudio" autoplay controls style="margin-top: 20px; display: none;"></audio>
+  <audio id="remoteAudio" autoplay playsinline></audio>
 
   <script>
-    const TARGET_ID = '5326'; // 固定配信ID
+    const TARGET_ID = '5326';
+    const PEER_CONFIG = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    };
+
     const joinBtn = document.getElementById('joinBtn');
     const passInput = document.getElementById('passInput');
-    const statusDiv = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const onAirTag = document.getElementById('onAirTag');
+    const meterBar = document.getElementById('meterBar');
+    const dbValue = document.getElementById('dbValue');
     const remoteAudio = document.getElementById('remoteAudio');
 
+    // メーターのLEDセグメント（15分割）を作成
+    const BLOCK_COUNT = 15;
+    for (let i = 0; i < BLOCK_COUNT; i++) {
+      const block = document.createElement('div');
+      block.className = 'meter-block';
+      meterBar.appendChild(block);
+    }
+    const blocks = document.querySelectorAll('.meter-block');
+
     let peer = null;
-    let localStream = null;
-    let activeCall = null; // 現在接続中の通話オブジェクト
+    let activeCall = null;
+
+    // 音量に応じてLEDブロックを光らせる処理
+    function setupMeter(stream) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 32;
+        src.connect(analyser);
+
+        const data = new Uint8Array(analyser.frequencyBinCount);
+
+        function update() {
+          analyser.getByteFrequencyData(data);
+          let sum = data.reduce((a, b) => a + b, 0);
+          let avg = sum / data.length;
+          let level = Math.floor((avg / 128) * BLOCK_COUNT);
+
+          dbValue.textContent = `${Math.min(99, Math.floor(avg))} DB`;
+
+          blocks.forEach((block, index) => {
+            if (index < level) {
+              if (index > 11) block.style.background = 'var(--neon-pink)';
+              else if (index > 8) block.style.background = '#ffaa00';
+              else block.style.background = 'var(--neon-green)';
+            } else {
+              block.style.background = '#1e293b';
+            }
+          });
+          requestAnimationFrame(update);
+        }
+        update();
+      } catch(e) { console.error(e); }
+    }
 
     joinBtn.addEventListener('click', async () => {
       const code = passInput.value.trim();
       joinBtn.disabled = true;
 
       if (code === '0000') {
-        // --- 配信者処理 ---
-        statusDiv.textContent = '状態: マイクを準備中...';
+        // --- 配信者 ---
+        statusText.textContent = 'INITIALIZING AUDIO INPUT...';
         try {
-          // マイク音声の取得
-          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          
-          // ID「5326」でPeerを初期化
-          peer = new Peer(TARGET_ID);
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setupMeter(stream);
 
-          peer.on('open', (id) => {
-            statusDiv.textContent = `状態: 配信中 (ID: ${id}) - リスナーの接続を待っています...`;
+          peer = new Peer(TARGET_ID, PEER_CONFIG);
+
+          peer.on('open', () => {
+            statusText.textContent = 'BROADCASTING ACTIVE // WAITING FOR LISTENER';
+            onAirTag.textContent = 'ON AIR';
+            onAirTag.classList.add('active');
           });
 
-          // リスナーからの着信処理
           peer.on('call', (call) => {
-            // リスナー制限: すでに誰か接続している場合は切断して拒否
             if (activeCall) {
               call.close();
               return;
             }
-
-            // 1人目のリスナーを着信許可し、自分のマイク音声を送る
-            call.answer(localStream);
+            call.answer(stream);
             activeCall = call;
-            statusDiv.textContent = '状態: 配信中 (リスナーが1人聴取中)';
+            statusText.textContent = 'LISTENER CONNECTED // TRANSMITTING';
 
-            // リスナーが切断したときの処理
             call.on('close', () => {
               activeCall = null;
-              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
-            });
-            call.on('error', () => {
-              activeCall = null;
-              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
+              statusText.textContent = 'LISTENER DISCONNECTED // WAITING';
             });
           });
 
           peer.on('error', (err) => {
-            if (err.type === 'unavailable-id') {
-              statusDiv.textContent = 'エラー: ID 5326 はすでに使われています（既に配信者が存在します）';
-            } else {
-              statusDiv.textContent = `エラー: ${err.message}`;
-            }
+            statusText.textContent = 'ERROR: ' + err.type;
             joinBtn.disabled = false;
           });
 
         } catch (err) {
-          statusDiv.textContent = 'エラー: マイクの取得に失敗しました';
+          statusText.textContent = 'ERROR: MIC PERMISSION DENIED';
           joinBtn.disabled = false;
         }
 
       } else {
-        // --- リスナー処理 ---
-        statusDiv.textContent = '状態: 配信者(5326)に接続中...';
-        
-        // ランダムなIDで自分のPeerを生成
-        peer = new Peer();
+        // --- リスナー ---
+        statusText.textContent = 'CONNECTING TO FREQUENCY 5326...';
+        peer = new Peer(PEER_CONFIG);
 
         peer.on('open', () => {
-          // ダミーの空ストリームまたは受信のみでCallを発信
-          // PeerJSではMediaStreamを渡す必要があるため、空のMediaStreamを作成
-          const emptyStream = new MediaStream();
-          const call = peer.call(TARGET_ID, emptyStream);
+          const ctx = new AudioContext();
+          const dest = ctx.createMediaStreamDestination();
+          const call = peer.call(TARGET_ID, dest.stream);
 
-          if (!call) {
-            statusDiv.textContent = 'エラー: 接続を送信できませんでした';
-            joinBtn.disabled = false;
-            return;
-          }
-
-          // 配信者から音声が送られてきたとき
           call.on('stream', (remoteStream) => {
             remoteAudio.srcObject = remoteStream;
-            remoteAudio.style.display = 'block';
-            statusDiv.textContent = '状態: ラジオを受信中';
+            remoteAudio.play().then(() => {
+              statusText.textContent = 'RECEIVING SIGNAL // LIVE';
+              onAirTag.textContent = 'LIVE';
+              onAirTag.classList.add('active');
+              setupMeter(remoteStream);
+            }).catch(() => {
+              statusText.textContent = 'CLICK ANYWHERE TO ENABLE AUDIO';
+            });
           });
 
           call.on('close', () => {
-            statusDiv.textContent = '状態: 配信が終了したか、満員（1人制限）のため切断されました';
-            remoteAudio.style.display = 'none';
+            statusText.textContent = 'SIGNAL LOST // BROADCAST ENDED';
+            onAirTag.textContent = 'OFFLINE';
+            onAirTag.classList.remove('active');
             joinBtn.disabled = false;
           });
 
-          call.on('error', (err) => {
-            statusDiv.textContent = `エラー: ${err.message}`;
+          peer.on('error', () => {
+            statusText.textContent = 'SIGNAL FAILED // HOST OFFLINE';
             joinBtn.disabled = false;
           });
-        });
-
-        peer.on('error', (err) => {
-          statusDiv.textContent = 'エラー: 配信者(5326)が見つからないか、接続できませんでした';
-          joinBtn.disabled = false;
         });
       }
     });
