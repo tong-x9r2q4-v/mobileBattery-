@@ -1,259 +1,140 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Passkey Auth Demo</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --accent: #38bdf8;
-            --text: #f8fafc;
-            --text-sub: #94a3b8;
-            --border: #334155;
-            --success: #10b981;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 450px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        header {
-            text-align: center;
-        }
-
-        header h1 {
-            font-size: 1.6rem;
-            color: var(--accent);
-            margin: 0 0 6px 0;
-        }
-
-        header p {
-            color: var(--text-sub);
-            font-size: 0.85rem;
-            margin: 0;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: #090d16;
-            color: #fff;
-            font-size: 1rem;
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--accent);
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: #000;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: #fff;
-        }
-
-        .btn:hover {
-            filter: brightness(1.1);
-        }
-
-        .status-box {
-            margin-top: 15px;
-            padding: 12px;
-            border-radius: 8px;
-            background: #090d16;
-            border: 1px solid var(--border);
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: var(--accent);
-            white-space: pre-wrap;
-            word-break: break-all;
-            min-height: 60px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>P2Pラジオ配信システム</title>
+  <!-- PeerJS ライブラリの読み込み -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+    .status { font-weight: bold; margin-top: 10px; }
+  </style>
 </head>
 <body>
+  <h1>P2P ラジオシステム</h1>
 
-<div class="container">
-    <header>
-        <h1>🔑 パスキー (WebAuthn) 認証</h1>
-        <p>生体認証・Touch ID / Face ID を利用したログイン</p>
-    </header>
+  <div>
+    <label for="passInput">配信者コード (リスナーは空欄のまま):</label><br>
+    <input type="password" id="passInput" placeholder="0000">
+    <button id="joinBtn">参加</button>
+  </div>
 
-    <div class="card">
-        <div class="form-group">
-            <label for="username">ユーザー名</label>
-            <input type="text" id="username" value="user_demo" placeholder="ユーザー名を入力">
-        </div>
+  <div id="status" class="status">状態: 未接続</div>
 
-        <div class="btn-group">
-            <button class="btn btn-primary" onclick="registerPasskey()">パスキー作成・登録</button>
-            <button class="btn btn-success" onclick="loginPasskey()">パスキーでログイン</button>
-        </div>
+  <!-- リスナーが音声を聞くための audio タグ -->
+  <audio id="remoteAudio" autoplay controls style="margin-top: 20px; display: none;"></audio>
 
-        <div class="status-box" id="statusLog">待機中...</div>
-    </div>
-</div>
+  <script>
+    const TARGET_ID = '5326'; // 固定配信ID
+    const joinBtn = document.getElementById('joinBtn');
+    const passInput = document.getElementById('passInput');
+    const statusDiv = document.getElementById('status');
+    const remoteAudio = document.getElementById('remoteAudio');
 
-<script>
-    // 擬似的なデータベース（クライアント側でクレデンシャルIDを保持）
-    let savedCredentialId = null;
+    let peer = null;
+    let localStream = null;
+    let activeCall = null; // 現在接続中の通話オブジェクト
 
-    // ログ出力関数
-    function log(msg) {
-        document.getElementById('statusLog').innerText = msg;
-    }
+    joinBtn.addEventListener('click', async () => {
+      const code = passInput.value.trim();
+      joinBtn.disabled = true;
 
-    // ランダムなチャレンジ文字列（バイト配列）の作成
-    function generateChallenge() {
-        return window.crypto.getRandomValues(new Uint8Array(32));
-    }
-
-    // 1. パスキー登録処理 (WebAuthn create)
-    async function registerPasskey() {
-        if (!window.PublicKeyCredential) {
-            log("エラー: このブラウザは WebAuthn / パスキーに対応していません。");
-            return;
-        }
-
-        const username = document.getElementById('username').value.trim();
-        if (!username) {
-            alert("ユーザー名を入力してください");
-            return;
-        }
-
-        log("生体認証を要求中...");
-
+      if (code === '0000') {
+        // --- 配信者処理 ---
+        statusDiv.textContent = '状態: マイクを準備中...';
         try {
-            // パスキー作成オプション設定
-            const createCredentialOptions = {
-                publicKey: {
-                    challenge: generateChallenge(),
-                    rp: {
-                        name: "Passkey Demo App",
-                        id: window.location.hostname
-                    },
-                    user: {
-                        id: new TextEncoder().encode(username),
-                        name: username,
-                        displayName: username
-                    },
-                    pubKeyCredParams: [
-                        { alg: -7, type: "public-key" },  // ES256
-                        { alg: -257, type: "public-key" } // RS256
-                    ],
-                    authenticatorSelection: {
-                        authenticatorAttachment: "platform", // タッチIDや顔認証などデバイス標準の生体認証
-                        userVerification: "required"
-                    },
-                    timeout: 60000
-                }
-            };
+          // マイク音声の取得
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          
+          // ID「5326」でPeerを初期化
+          peer = new Peer(TARGET_ID);
 
-            // デバイスの生体認証呼び出し
-            const credential = await navigator.credentials.create(createCredentialOptions);
-            
-            // クレデンシャルIDの保持（通常はサーバーへ送信してDB保管します）
-            savedCredentialId = credential.rawId;
+          peer.on('open', (id) => {
+            statusDiv.textContent = `状態: 配信中 (ID: ${id}) - リスナーの接続を待っています...`;
+          });
 
-            log(`✅ パスキーを作成しました！\nID: ${credential.id.substring(0, 20)}...`);
+          // リスナーからの着信処理
+          peer.on('call', (call) => {
+            // リスナー制限: すでに誰か接続している場合は切断して拒否
+            if (activeCall) {
+              call.close();
+              return;
+            }
+
+            // 1人目のリスナーを着信許可し、自分のマイク音声を送る
+            call.answer(localStream);
+            activeCall = call;
+            statusDiv.textContent = '状態: 配信中 (リスナーが1人聴取中)';
+
+            // リスナーが切断したときの処理
+            call.on('close', () => {
+              activeCall = null;
+              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
+            });
+            call.on('error', () => {
+              activeCall = null;
+              statusDiv.textContent = '状態: 配信中 - リスナーの接続を待っています...';
+            });
+          });
+
+          peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+              statusDiv.textContent = 'エラー: ID 5326 はすでに使われています（既に配信者が存在します）';
+            } else {
+              statusDiv.textContent = `エラー: ${err.message}`;
+            }
+            joinBtn.disabled = false;
+          });
+
         } catch (err) {
-            log(`❌ 登録エラーまたはキャンセル: ${err.message}`);
+          statusDiv.textContent = 'エラー: マイクの取得に失敗しました';
+          joinBtn.disabled = false;
         }
-    }
 
-    // 2. パスキーログイン処理 (WebAuthn get)
-    async function loginPasskey() {
-        if (!savedCredentialId) {
-            alert("先にパスキーの作成・登録を行ってください。");
+      } else {
+        // --- リスナー処理 ---
+        statusDiv.textContent = '状態: 配信者(5326)に接続中...';
+        
+        // ランダムなIDで自分のPeerを生成
+        peer = new Peer();
+
+        peer.on('open', () => {
+          // ダミーの空ストリームまたは受信のみでCallを発信
+          // PeerJSではMediaStreamを渡す必要があるため、空のMediaStreamを作成
+          const emptyStream = new MediaStream();
+          const call = peer.call(TARGET_ID, emptyStream);
+
+          if (!call) {
+            statusDiv.textContent = 'エラー: 接続を送信できませんでした';
+            joinBtn.disabled = false;
             return;
-        }
+          }
 
-        log("認証中... 生体認証を行ってください");
+          // 配信者から音声が送られてきたとき
+          call.on('stream', (remoteStream) => {
+            remoteAudio.srcObject = remoteStream;
+            remoteAudio.style.display = 'block';
+            statusDiv.textContent = '状態: ラジオを受信中';
+          });
 
-        try {
-            // パスキー認証オプション設定
-            const getCredentialOptions = {
-                publicKey: {
-                    challenge: generateChallenge(),
-                    allowCredentials: [{
-                        id: savedCredentialId,
-                        type: 'public-key'
-                    }],
-                    userVerification: "required",
-                    timeout: 60000
-                }
-            };
+          call.on('close', () => {
+            statusDiv.textContent = '状態: 配信が終了したか、満員（1人制限）のため切断されました';
+            remoteAudio.style.display = 'none';
+            joinBtn.disabled = false;
+          });
 
-            // デバイスの生体認証による検証
-            const assertion = await navigator.credentials.get(getCredentialOptions);
+          call.on('error', (err) => {
+            statusDiv.textContent = `エラー: ${err.message}`;
+            joinBtn.disabled = false;
+          });
+        });
 
-            log(`🎉 ログイン成功！\nユーザー: ${document.getElementById('username').value}`);
-        } catch (err) {
-            log(`❌ ログイン失敗: ${err.message}`);
-        }
-    }
-</script>
-
+        peer.on('error', (err) => {
+          statusDiv.textContent = 'エラー: 配信者(5326)が見つからないか、接続できませんでした';
+          joinBtn.disabled = false;
+        });
+      }
+    });
+  </script>
 </body>
 </html>
