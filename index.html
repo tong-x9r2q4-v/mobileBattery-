@@ -3,71 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mellow Audio Text Transfer</title>
+    <title>Passkey Auth Demo</title>
     <style>
         :root {
             --bg: #0f172a;
-            --card: #1e293b;
+            --card-bg: #1e293b;
             --accent: #38bdf8;
-            --accent-soft: rgba(56, 189, 248, 0.2);
             --text: #f8fafc;
-            --sub: #94a3b8;
+            --text-sub: #94a3b8;
             --border: #334155;
-            --green: #10b981;
+            --success: #10b981;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
+            background-color: var(--bg);
             color: var(--text);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
 
         .container {
             width: 100%;
-            max-width: 500px;
+            max-width: 450px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
 
-        header h1 {
-            font-size: 1.5rem;
-            color: var(--accent);
+        header {
             text-align: center;
-            margin: 0 0 4px 0;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            color: var(--accent);
+            margin: 0 0 6px 0;
         }
 
         header p {
-            color: var(--sub);
+            color: var(--text-sub);
             font-size: 0.85rem;
-            text-align: center;
             margin: 0;
         }
 
         .card {
-            background: var(--card);
+            background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
-        .card-title {
-            font-size: 1rem;
-            font-weight: bold;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            display: block;
+            margin-bottom: 6px;
         }
 
         input[type="text"] {
             width: 100%;
-            padding: 10px 14px;
+            padding: 10px 12px;
             border-radius: 8px;
             border: 1px solid var(--border);
             background: #090d16;
@@ -81,48 +87,48 @@
             border-color: var(--accent);
         }
 
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
         .btn {
-            width: 100%;
+            flex: 1;
             padding: 12px;
             border: none;
             border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
             background: var(--accent);
             color: #000;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: 0.2s;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
         }
 
         .btn:hover {
             filter: brightness(1.1);
         }
 
-        .btn-green {
-            background: var(--green);
-            color: #fff;
-        }
-
-        .log-box {
+        .status-box {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
             background: #090d16;
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            min-height: 80px;
-            max-height: 150px;
-            overflow-y: auto;
             font-family: monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--accent);
             white-space: pre-wrap;
             word-break: break-all;
-        }
-
-        .status {
-            font-size: 0.8rem;
-            color: var(--sub);
-            margin-top: 6px;
+            min-height: 60px;
         }
     </style>
 </head>
@@ -130,192 +136,122 @@
 
 <div class="container">
     <header>
-        <h1>🎵 耳に優しい音響文字通信</h1>
-        <p>中音域の丸いポコポコ音でテキストを送信・受信します</p>
+        <h1>🔑 パスキー (WebAuthn) 認証</h1>
+        <p>生体認証・Touch ID / Face ID を利用したログイン</p>
     </header>
 
-    <!-- 送信カード -->
     <div class="card">
-        <div class="card-title">📤 1. テキスト送信</div>
-        <input type="text" id="sendInput" placeholder="送信したい文字（半角英数字）" value="HELLO">
-        <button class="btn" onclick="sendAudioText()">柔らかい音で送信</button>
-        <div class="status" id="txStatus">待機中</div>
-    </div>
+        <div class="form-group">
+            <label for="username">ユーザー名</label>
+            <input type="text" id="username" value="user_demo" placeholder="ユーザー名を入力">
+        </div>
 
-    <!-- 受信カード -->
-    <div class="card">
-        <div class="card-title">📥 2. マイク受信</div>
-        <button class="btn btn-green" id="rxBtn" onclick="toggleReception()">マイク聞き取り開始</button>
-        <div class="status" id="rxStatus" style="margin-bottom: 8px;">停止中</div>
-        <div class="log-box" id="rxLog"></div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="registerPasskey()">パスキー作成・登録</button>
+            <button class="btn btn-success" onclick="loginPasskey()">パスキーでログイン</button>
+        </div>
+
+        <div class="status-box" id="statusLog">待機中...</div>
     </div>
 </div>
 
 <script>
-    // --- 音響設定（耳に痛くない調整） ---
-    // 440Hz(A4)〜880Hz(A5) の中音域を使用し、ドレミに近い柔らかい周波数で割り当て
-    const BASE_FREQ = 440;       // 基準周波数 (Hz)
-    const FREQ_STEP = 15;        // 文字ごとの周波数間隔 (Hz)
-    const START_FREQ = 350;      // 開始シグナル用周波数
-    const TONE_DURATION = 0.15;  // 1文字あたりの音の長さ（0.15秒）
-    const FADE_TIME = 0.02;      // アタック・リリース（アタック感を丸くして刺さらない音にする）
+    // 擬似的なデータベース（クライアント側でクレデンシャルIDを保持）
+    let savedCredentialId = null;
 
-    let audioCtx = null;
-    let isListening = false;
-    let micStream = null;
-    let analyser = null;
-    let rxInterval = null;
-
-    // WEB Audio Context の初期化
-    function getAudioContext() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        return audioCtx;
+    // ログ出力関数
+    function log(msg) {
+        document.getElementById('statusLog').innerText = msg;
     }
 
-    // --- 1. 送信処理 ---
-    async function sendAudioText() {
-        const ctx = getAudioContext();
-        if (ctx.state === 'suspended') await ctx.resume();
+    // ランダムなチャレンジ文字列（バイト配列）の作成
+    function generateChallenge() {
+        return window.crypto.getRandomValues(new Uint8Array(32));
+    }
 
-        const text = document.getElementById('sendInput').value.trim();
-        if (!text) return;
+    // 1. パスキー登録処理 (WebAuthn create)
+    async function registerPasskey() {
+        if (!window.PublicKeyCredential) {
+            log("エラー: このブラウザは WebAuthn / パスキーに対応していません。");
+            return;
+        }
 
-        const statusEl = document.getElementById('txStatus');
-        statusEl.innerText = "送信中...";
+        const username = document.getElementById('username').value.trim();
+        if (!username) {
+            alert("ユーザー名を入力してください");
+            return;
+        }
 
-        // 開始音（プッという合図音）
-        playMellowTone(START_FREQ, TONE_DURATION);
-        await sleep((TONE_DURATION + 0.05) * 1000);
+        log("生体認証を要求中...");
 
-        // 各文字をアスキーコードに合わせて音に変換して順番に再生
-        for (let i = 0; i < text.length; i++) {
-            const charCode = text.charCodeAt(i);
-            // 周波数計算: 基準音 + (ASCIIコード * ステップ)
-            const freq = BASE_FREQ + ((charCode - 32) * FREQ_STEP);
+        try {
+            // パスキー作成オプション設定
+            const createCredentialOptions = {
+                publicKey: {
+                    challenge: generateChallenge(),
+                    rp: {
+                        name: "Passkey Demo App",
+                        id: window.location.hostname
+                    },
+                    user: {
+                        id: new TextEncoder().encode(username),
+                        name: username,
+                        displayName: username
+                    },
+                    pubKeyCredParams: [
+                        { alg: -7, type: "public-key" },  // ES256
+                        { alg: -257, type: "public-key" } // RS256
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "platform", // タッチIDや顔認証などデバイス標準の生体認証
+                        userVerification: "required"
+                    },
+                    timeout: 60000
+                }
+            };
+
+            // デバイスの生体認証呼び出し
+            const credential = await navigator.credentials.create(createCredentialOptions);
             
-            playMellowTone(freq, TONE_DURATION);
-            await sleep((TONE_DURATION + 0.03) * 1000);
-        }
+            // クレデンシャルIDの保持（通常はサーバーへ送信してDB保管します）
+            savedCredentialId = credential.rawId;
 
-        statusEl.innerText = "送信完了";
-    }
-
-    // 耳に丸いポコポコした音を鳴らす関数
-    function playMellowTone(freq, duration) {
-        const ctx = getAudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine'; // 最もカドがない丸い「サイン波」を使用
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-        // 音の角を落とすエンベロープ処理（耳に痛くないように音量をなだらかに上げ下げ）
-        const now = ctx.currentTime;
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + FADE_TIME); // 最大音量も控えめ(0.2)に設定
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + duration);
-    }
-
-    // --- 2. 受信処理（周波数解析） ---
-    async function toggleReception() {
-        const btn = document.getElementById('rxBtn');
-        const statusEl = document.getElementById('rxStatus');
-
-        if (isListening) {
-            // 停止処理
-            isListening = false;
-            if (rxInterval) clearInterval(rxInterval);
-            if (micStream) micStream.getTracks().forEach(track => track.stop());
-            btn.innerText = "マイク聞き取り開始";
-            btn.className = "btn btn-green";
-            statusEl.innerText = "停止中";
-        } else {
-            // 開始処理
-            try {
-                const ctx = getAudioContext();
-                if (ctx.state === 'suspended') await ctx.resume();
-
-                micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                const source = ctx.createMediaStreamSource(micStream);
-                
-                analyser = ctx.createAnalyser();
-                analyser.fftSize = 2048;
-                source.connect(analyser);
-
-                isListening = true;
-                btn.innerText = "聞き取り停止";
-                btn.className = "btn";
-                btn.style.background = "#ef4444";
-                btn.style.color = "#fff";
-                statusEl.innerText = "👂 音を聞き取り中...";
-
-                startDecoding();
-            } catch (err) {
-                alert("マイクの許可が必要です: " + err);
-            }
+            log(`✅ パスキーを作成しました！\nID: ${credential.id.substring(0, 20)}...`);
+        } catch (err) {
+            log(`❌ 登録エラーまたはキャンセル: ${err.message}`);
         }
     }
 
-    // 周波数を監視して文字にデコード
-    function startDecoding() {
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const sampleRate = getAudioContext().sampleRate;
-        const logEl = document.getElementById('rxLog');
+    // 2. パスキーログイン処理 (WebAuthn get)
+    async function loginPasskey() {
+        if (!savedCredentialId) {
+            alert("先にパスキーの作成・登録を行ってください。");
+            return;
+        }
 
-        let lastCharCode = null;
-        let sameCharCount = 0;
+        log("認証中... 生体認証を行ってください");
 
-        rxInterval = setInterval(() => {
-            if (!isListening) return;
-
-            analyser.getByteFrequencyData(dataArray);
-
-            // 一番強い周波数を探す
-            let maxVal = 0;
-            let maxIndex = -1;
-            for (let i = 0; i < bufferLength; i++) {
-                if (dataArray[i] > maxVal) {
-                    maxVal = dataArray[i];
-                    maxIndex = i;
+        try {
+            // パスキー認証オプション設定
+            const getCredentialOptions = {
+                publicKey: {
+                    challenge: generateChallenge(),
+                    allowCredentials: [{
+                        id: savedCredentialId,
+                        type: 'public-key'
+                    }],
+                    userVerification: "required",
+                    timeout: 60000
                 }
-            }
+            };
 
-            // 一定以上の音量がある場合のみ処理
-            if (maxVal > 120) { 
-                const detectedFreq = maxIndex * (sampleRate / analyser.fftSize);
+            // デバイスの生体認証による検証
+            const assertion = await navigator.credentials.get(getCredentialOptions);
 
-                // 検出された周波数から文字コードを逆算
-                const estimatedCode = Math.round(((detectedFreq - BASE_FREQ) / FREQ_STEP) + 32);
-
-                if (estimatedCode >= 32 && estimatedCode <= 126) {
-                    // 誤検知を防ぐため連続検出の調整
-                    if (estimatedCode !== lastCharCode) {
-                        lastCharCode = estimatedCode;
-                        sameCharCount = 1;
-                    } else {
-                        sameCharCount++;
-                        if (sameCharCount === 2) { // 安定して検知できたら文字追加
-                            const char = String.fromCharCode(estimatedCode);
-                            logEl.innerText += char;
-                            logEl.scrollTop = logEl.scrollHeight;
-                        }
-                    }
-                }
-            }
-        }, 50);
-    }
-
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+            log(`🎉 ログイン成功！\nユーザー: ${document.getElementById('username').value}`);
+        } catch (err) {
+            log(`❌ ログイン失敗: ${err.message}`);
+        }
     }
 </script>
 
