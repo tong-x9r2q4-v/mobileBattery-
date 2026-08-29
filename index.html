@@ -3,229 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Stream Transfer with Preview</title>
-    <!-- QRコード生成ライブラリ (CDN) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- QRコードカメラ読み取りライブラリ (CDN) -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
+    <title>Mellow Audio Text Transfer</title>
     <style>
         :root {
-            --bg: #0b0f19;
-            --card-bg: #151d30;
+            --bg: #0f172a;
+            --card: #1e293b;
             --accent: #38bdf8;
-            --accent-glow: rgba(56, 189, 248, 0.3);
+            --accent-soft: rgba(56, 189, 248, 0.2);
             --text: #f8fafc;
-            --text-sub: #94a3b8;
-            --border: #1e293b;
-            --success: #10b981;
-            --danger: #ef4444;
+            --sub: #94a3b8;
+            --border: #334155;
+            --green: #10b981;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
+            background: var(--bg);
             color: var(--text);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
         }
 
         .container {
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
 
         header h1 {
-            font-size: 1.8rem;
-            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent);
             text-align: center;
-            background: linear-gradient(135deg, #38bdf8, #818cf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
+            margin: 0 0 4px 0;
+        }
+
+        header p {
+            color: var(--sub);
+            font-size: 0.85rem;
+            text-align: center;
+            margin: 0;
         }
 
         .card {
-            background: var(--card-bg);
+            background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .card-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
-        }
-
-        .drop-zone {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            text-align: center;
-            cursor: pointer;
-            background: rgba(11, 15, 25, 0.5);
-        }
-
-        .drop-zone:hover {
-            border-color: var(--accent);
-        }
-
-        .controls {
-            margin-top: 16px;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 12px;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             gap: 8px;
         }
 
-        .controls label {
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            display: flex;
-            justify-content: space-between;
+        input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #090d16;
+            color: #fff;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
         }
 
         .btn {
             width: 100%;
             padding: 12px;
-            border-radius: 10px;
             border: none;
-            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            border-radius: 8px;
+            background: var(--accent);
             color: #000;
             font-weight: bold;
             font-size: 1rem;
             cursor: pointer;
-            margin-top: 14px;
+            margin-top: 10px;
+            transition: 0.2s;
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
+        .btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-green {
+            background: var(--green);
             color: #fff;
         }
 
-        .qr-display {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            margin-top: 16px;
-            min-height: 220px;
-        }
-
-        .progress-wrapper {
-            margin-top: 16px;
-        }
-
-        .progress-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            margin-bottom: 6px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: var(--border);
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, var(--accent), #818cf8);
-            border-radius: 5px;
-            transition: width 0.1s linear;
-        }
-
-        #reader {
-            width: 100%;
-            border-radius: 12px;
-            overflow: hidden;
+        .log-box {
+            background: #090d16;
             border: 1px solid var(--border);
-            background: #000;
-        }
-
-        /* 受信・プレビューエリア */
-        .result-box {
-            margin-top: 16px;
-            padding: 16px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid var(--success);
-            border-radius: 12px;
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .download-btn {
-            display: inline-block;
-            padding: 8px 16px;
-            background: var(--success);
-            color: #000;
-            font-weight: bold;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        .preview-container {
-            width: 100%;
-            max-height: 350px;
-            overflow: auto;
-            background: #000;
             border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-
-        .preview-container img, 
-        .preview-container video {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 6px;
-        }
-
-        .preview-container audio {
-            width: 100%;
-        }
-
-        .preview-text {
-            width: 100%;
+            padding: 12px;
+            min-height: 80px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent);
             white-space: pre-wrap;
             word-break: break-all;
-            color: #fff;
-            font-family: monospace;
-            font-size: 0.85rem;
-            margin: 0;
         }
 
-        .preview-iframe {
-            width: 100%;
-            height: 300px;
-            border: none;
+        .status {
+            font-size: 0.8rem;
+            color: var(--sub);
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -233,314 +130,192 @@
 
 <div class="container">
     <header>
-        <h1>⚡ QR STREAM TRANSFER</h1>
+        <h1>🎵 耳に優しい音響文字通信</h1>
+        <p>中音域の丸いポコポコ音でテキストを送信・受信します</p>
     </header>
 
-    <!-- 送信エリア -->
+    <!-- 送信カード -->
     <div class="card">
-        <div class="card-title">📤 送信 (連続QRコード表示)[cite: 1]</div>
-        <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
-            <p id="fileNameDisplay">📂 クリックしてファイルを選択</p>
-            <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)">
-        </div>
-
-        <div class="controls">
-            <label>
-                <span>切り替え速度 (FPS):</span>
-                <span id="fpsVal">10 FPS</span>
-            </label>
-            <input type="range" id="fpsRange" min="1" max="25" value="10" oninput="document.getElementById('fpsVal').innerText = this.value + ' FPS'">
-        </div>
-
-        <button class="btn" id="startTxBtn" onclick="startQRStream()">送信開始[cite: 1]</button>
-        <button class="btn btn-danger" id="stopTxBtn" onclick="stopQRStream()" style="display:none;">停止</button>
-
-        <div class="progress-wrapper">
-            <div class="progress-info">
-                <span id="txStatus">待機中</span>
-                <span id="txPercent">0%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="txProgressFill"></div>
-            </div>
-        </div>
-
-        <div class="qr-display">
-            <div id="qrcode"></div>
-        </div>
+        <div class="card-title">📤 1. テキスト送信</div>
+        <input type="text" id="sendInput" placeholder="送信したい文字（半角英数字）" value="HELLO">
+        <button class="btn" onclick="sendAudioText()">柔らかい音で送信</button>
+        <div class="status" id="txStatus">待機中</div>
     </div>
 
-    <!-- 受信・プレビューエリア -->
+    <!-- 受信カード -->
     <div class="card">
-        <div class="card-title">📥 受信 (スキャン＆プレビュー)[cite: 1]</div>
-
-        <button class="btn" id="startRxBtn" onclick="startCamera()">カメラでスキャンを開始[cite: 1]</button>
-        <button class="btn btn-danger" id="stopRxBtn" onclick="stopCamera()" style="display:none;">スキャン停止</button>
-
-        <div style="margin-top: 16px;">
-            <div id="reader"></div>
-        </div>
-
-        <div class="progress-wrapper">
-            <div class="progress-info">
-                <span id="rxStatus">スキャン停止中</span>
-                <span id="rxPercent">0 / 0 コマ (0%)</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="rxProgressFill"></div>
-            </div>
-        </div>
-
-        <!-- 結果表示・プレビュー要素 -->
-        <div class="result-box" id="resultBox">
-            <div class="result-header">
-                <span id="receivedFileName" style="font-weight: bold; color: var(--success);">受信完了</span>
-                <a id="downloadLink" class="download-btn" href="#" download="">保存する</a>
-            </div>
-            <!-- ここにファイルに応じたプレビューが読み込まれます -->
-            <div class="preview-container" id="previewContainer"></div>
-        </div>
+        <div class="card-title">📥 2. マイク受信</div>
+        <button class="btn btn-green" id="rxBtn" onclick="toggleReception()">マイク聞き取り開始</button>
+        <div class="status" id="rxStatus" style="margin-bottom: 8px;">停止中</div>
+        <div class="log-box" id="rxLog"></div>
     </div>
 </div>
 
 <script>
-    let selectedFile = null;
-    let selectedBuffer = null;
-    let qrChunks = [];
-    let animationTimer = null;
-    let currentFrame = 0;
-    const CHUNK_SIZE = 120;
+    // --- 音響設定（耳に痛くない調整） ---
+    // 440Hz(A4)〜880Hz(A5) の中音域を使用し、ドレミに近い柔らかい周波数で割り当て
+    const BASE_FREQ = 440;       // 基準周波数 (Hz)
+    const FREQ_STEP = 15;        // 文字ごとの周波数間隔 (Hz)
+    const START_FREQ = 350;      // 開始シグナル用周波数
+    const TONE_DURATION = 0.15;  // 1文字あたりの音の長さ（0.15秒）
+    const FADE_TIME = 0.02;      // アタック・リリース（アタック感を丸くして刺さらない音にする）
 
-    let html5QrcodeScanner = null;
-    let receivedChunks = {};
-    let totalExpectedChunks = 0;
+    let audioCtx = null;
+    let isListening = false;
+    let micStream = null;
+    let analyser = null;
+    let rxInterval = null;
 
-    // 送信側ファイル読み込み
-    function handleFileSelect(e) {
-        const file = e.target.files[0];
-        if (file) {
-            selectedFile = file;
-            document.getElementById('fileNameDisplay').innerHTML = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                selectedBuffer = new Uint8Array(evt.target.result);
-            };
-            reader.readAsArrayBuffer(file);
+    // WEB Audio Context の初期化
+    function getAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
+        return audioCtx;
     }
 
-    // QR送信ループ
-    function startQRStream() {
-        if (!selectedBuffer) {
-            alert('ファイルを選択してください。');
-            return;
+    // --- 1. 送信処理 ---
+    async function sendAudioText() {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        const text = document.getElementById('sendInput').value.trim();
+        if (!text) return;
+
+        const statusEl = document.getElementById('txStatus');
+        statusEl.innerText = "送信中...";
+
+        // 開始音（プッという合図音）
+        playMellowTone(START_FREQ, TONE_DURATION);
+        await sleep((TONE_DURATION + 0.05) * 1000);
+
+        // 各文字をアスキーコードに合わせて音に変換して順番に再生
+        for (let i = 0; i < text.length; i++) {
+            const charCode = text.charCodeAt(i);
+            // 周波数計算: 基準音 + (ASCIIコード * ステップ)
+            const freq = BASE_FREQ + ((charCode - 32) * FREQ_STEP);
+            
+            playMellowTone(freq, TONE_DURATION);
+            await sleep((TONE_DURATION + 0.03) * 1000);
         }
 
-        const fps = parseInt(document.getElementById('fpsRange').value);
-        const totalChunks = Math.ceil(selectedBuffer.length / CHUNK_SIZE);
-        qrChunks = [];
-
-        for (let i = 0; i < totalChunks; i++) {
-            const start = i * CHUNK_SIZE;
-            const end = Math.min(start + CHUNK_SIZE, selectedBuffer.length);
-            const chunkData = selectedBuffer.slice(start, end);
-
-            let binary = '';
-            for (let b = 0; b < chunkData.length; b++) {
-                binary += String.fromCharCode(chunkData[b]);
-            }
-            const base64Data = btoa(binary);
-
-            const packet = `${i}|${totalChunks}|${encodeURIComponent(selectedFile.name)}|${base64Data}`;
-            qrChunks.push(packet);
-        }
-
-        document.getElementById('startTxBtn').style.display = 'none';
-        document.getElementById('stopTxBtn').style.display = 'block';
-
-        const qrcodeContainer = document.getElementById('qrcode');
-        qrcodeContainer.innerHTML = '';
-        const qr = new QRCode(qrcodeContainer, {
-            width: 180,
-            height: 180,
-            correctLevel: QRCode.CorrectLevel.L
-        });
-
-        currentFrame = 0;
-        const intervalMs = 1000 / fps;
-
-        animationTimer = setInterval(() => {
-            qr.clear();
-            qr.makeCode(qrChunks[currentFrame]);
-
-            const pct = Math.floor(((currentFrame + 1) / totalChunks) * 100);
-            document.getElementById('txProgressFill').style.width = pct + '%';
-            document.getElementById('txPercent').innerText = pct + '%';
-            document.getElementById('txStatus').innerText = `再生中: ${currentFrame + 1} / ${totalChunks}`;
-
-            currentFrame = (currentFrame + 1) % totalChunks;
-        }, intervalMs);
+        statusEl.innerText = "送信完了";
     }
 
-    function stopQRStream() {
-        if (animationTimer) clearInterval(animationTimer);
-        document.getElementById('startTxBtn').style.display = 'block';
-        document.getElementById('stopTxBtn').style.display = 'none';
-        document.getElementById('txStatus').innerText = '停止';
+    // 耳に丸いポコポコした音を鳴らす関数
+    function playMellowTone(freq, duration) {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine'; // 最もカドがない丸い「サイン波」を使用
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        // 音の角を落とすエンベロープ処理（耳に痛くないように音量をなだらかに上げ下げ）
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.2, now + FADE_TIME); // 最大音量も控えめ(0.2)に設定
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
     }
 
-    // カメラ受信処理
-    function startCamera() {
-        receivedChunks = {};
-        totalExpectedChunks = 0;
-        document.getElementById('resultBox').style.display = 'none';
+    // --- 2. 受信処理（周波数解析） ---
+    async function toggleReception() {
+        const btn = document.getElementById('rxBtn');
+        const statusEl = document.getElementById('rxStatus');
 
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        const config = { fps: 30, qrbox: { width: 220, height: 220 } };
-
-        html5QrcodeScanner.start(
-            { facingMode: "environment" },
-            config,
-            onScanSuccess
-        ).then(() => {
-            document.getElementById('startRxBtn').style.display = 'none';
-            document.getElementById('stopRxBtn').style.display = 'block';
-            document.getElementById('rxStatus').innerText = 'スキャン中...';
-        }).catch(err => alert("カメラの起動に失敗しました: " + err));
-    }
-
-    function onScanSuccess(decodedText) {
-        const parts = decodedText.split('|');
-        if (parts.length !== 4) return;
-
-        const index = parseInt(parts[0]);
-        const total = parseInt(parts[1]);
-        const fileName = decodeURIComponent(parts[2]);
-        const base64Data = parts[3];
-
-        totalExpectedChunks = total;
-
-        if (!receivedChunks[index]) {
-            receivedChunks[index] = { fileName, base64Data };
-            const currentCount = Object.keys(receivedChunks).length;
-            const pct = Math.floor((currentCount / totalExpectedChunks) * 100);
-
-            document.getElementById('rxProgressFill').style.width = pct + '%';
-            document.getElementById('rxPercent').innerText = `${currentCount} / ${totalExpectedChunks} (${pct}%)`;
-            document.getElementById('rxStatus').innerText = `受信中...`;
-
-            if (currentCount === totalExpectedChunks) {
-                completeReception();
-            }
-        }
-    }
-
-    // 受信完了・データ結合およびプレビュー生成
-    function completeReception() {
-        stopCamera();
-        document.getElementById('rxStatus').innerText = '🎉 受信完了！';
-
-        let totalBytes = 0;
-        let byteArrays = [];
-        let fileName = receivedChunks[0].fileName;
-
-        for (let i = 0; i < totalExpectedChunks; i++) {
-            const b64 = receivedChunks[i].base64Data;
-            const binStr = atob(b64);
-            const len = binStr.length;
-            const bytes = new Uint8Array(len);
-            for (let j = 0; j < len; j++) {
-                bytes[j] = binStr.charCodeAt(j);
-            }
-            byteArrays.push(bytes);
-            totalBytes += len;
-        }
-
-        const mergedArray = new Uint8Array(totalBytes);
-        let offset = 0;
-        for (let arr of byteArrays) {
-            mergedArray.set(arr, offset);
-            offset += arr.length;
-        }
-
-        // ファイル拡張子からMIMEタイプを判定
-        const ext = fileName.split('.').pop().toLowerCase();
-        const mimeType = getMimeType(ext);
-
-        const blob = new Blob([mergedArray], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-
-        // ダウンロードリンクの設定
-        const dlLink = document.getElementById('downloadLink');
-        dlLink.href = url;
-        dlLink.download = fileName;
-
-        document.getElementById('receivedFileName').innerText = `📄 ${fileName}`;
-
-        // プレビュー生成
-        renderPreview(blob, url, ext, mimeType);
-
-        document.getElementById('resultBox').style.display = 'flex';
-    }
-
-    // プレビューレンダリング関数
-    function renderPreview(blob, url, ext, mimeType) {
-        const container = document.getElementById('previewContainer');
-        container.innerHTML = '';
-
-        if (mimeType.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = url;
-            container.appendChild(img);
-        } else if (mimeType.startsWith('video/')) {
-            const video = document.createElement('video');
-            video.src = url;
-            video.controls = true;
-            container.appendChild(video);
-        } else if (mimeType.startsWith('audio/')) {
-            const audio = document.createElement('audio');
-            audio.src = url;
-            audio.controls = true;
-            container.appendChild(audio);
-        } else if (mimeType === 'application/pdf') {
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.className = 'preview-iframe';
-            container.appendChild(iframe);
-        } else if (['txt', 'json', 'js', 'html', 'css', 'csv', 'md'].includes(ext)) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const p = document.createElement('pre');
-                p.className = 'preview-text';
-                p.textContent = e.target.result;
-                container.appendChild(p);
-            };
-            reader.readAsText(blob);
+        if (isListening) {
+            // 停止処理
+            isListening = false;
+            if (rxInterval) clearInterval(rxInterval);
+            if (micStream) micStream.getTracks().forEach(track => track.stop());
+            btn.innerText = "マイク聞き取り開始";
+            btn.className = "btn btn-green";
+            statusEl.innerText = "停止中";
         } else {
-            container.innerHTML = `<p style="color:var(--text-sub); font-size:0.85rem;">※このファイル形式の直接プレビューには対応していません。「保存する」ボタンから保存して開いてください。</p>`;
+            // 開始処理
+            try {
+                const ctx = getAudioContext();
+                if (ctx.state === 'suspended') await ctx.resume();
+
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const source = ctx.createMediaStreamSource(micStream);
+                
+                analyser = ctx.createAnalyser();
+                analyser.fftSize = 2048;
+                source.connect(analyser);
+
+                isListening = true;
+                btn.innerText = "聞き取り停止";
+                btn.className = "btn";
+                btn.style.background = "#ef4444";
+                btn.style.color = "#fff";
+                statusEl.innerText = "👂 音を聞き取り中...";
+
+                startDecoding();
+            } catch (err) {
+                alert("マイクの許可が必要です: " + err);
+            }
         }
     }
 
-    // 簡単なMIMEタイプ判別
-    function getMimeType(ext) {
-        const map = {
-            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
-            'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
-            'mp4': 'video/mp4', 'webm': 'video/webm',
-            'pdf': 'application/pdf',
-            'txt': 'text/plain', 'json': 'application/json', 'html': 'text/html'
-        };
-        return map[ext] || 'application/octet-stream';
+    // 周波数を監視して文字にデコード
+    function startDecoding() {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        const sampleRate = getAudioContext().sampleRate;
+        const logEl = document.getElementById('rxLog');
+
+        let lastCharCode = null;
+        let sameCharCount = 0;
+
+        rxInterval = setInterval(() => {
+            if (!isListening) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // 一番強い周波数を探す
+            let maxVal = 0;
+            let maxIndex = -1;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > maxVal) {
+                    maxVal = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            // 一定以上の音量がある場合のみ処理
+            if (maxVal > 120) { 
+                const detectedFreq = maxIndex * (sampleRate / analyser.fftSize);
+
+                // 検出された周波数から文字コードを逆算
+                const estimatedCode = Math.round(((detectedFreq - BASE_FREQ) / FREQ_STEP) + 32);
+
+                if (estimatedCode >= 32 && estimatedCode <= 126) {
+                    // 誤検知を防ぐため連続検出の調整
+                    if (estimatedCode !== lastCharCode) {
+                        lastCharCode = estimatedCode;
+                        sameCharCount = 1;
+                    } else {
+                        sameCharCount++;
+                        if (sameCharCount === 2) { // 安定して検知できたら文字追加
+                            const char = String.fromCharCode(estimatedCode);
+                            logEl.innerText += char;
+                            logEl.scrollTop = logEl.scrollHeight;
+                        }
+                    }
+                }
+            }
+        }, 50);
     }
 
-    function stopCamera() {
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().then(() => {
-                html5QrcodeScanner.clear();
-                document.getElementById('startRxBtn').style.display = 'block';
-                document.getElementById('stopRxBtn').style.display = 'none';
-            }).catch(err => console.error(err));
-        }
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 </script>
 
