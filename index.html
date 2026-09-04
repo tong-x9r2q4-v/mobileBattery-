@@ -1,488 +1,622 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>決済＆認証システム</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    body {
-      background-color: #f4f6f9;
-      color: #333;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .container {
-      background: #ffffff;
-      width: 100%;
-      max-width: 420px;
-      padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-    h2 {
-      margin-bottom: 20px;
-      font-size: 1.25rem;
-      color: #1a1a1a;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-      background-color: #e0e0e0;
-      color: #666;
-    }
-    .status-badge.online {
-      background-color: #e6f4ea;
-      color: #137333;
-    }
-    .screen {
-      display: none;
-    }
-    .screen.active {
-      display: block;
-    }
-    .price-display {
-      font-size: 2.5rem;
-      font-weight: bold;
-      margin: 20px 0;
-      color: #007aff;
-    }
-    /* テンキーUI */
-    .keypad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-top: 15px;
-    }
-    .key-btn {
-      padding: 16px;
-      font-size: 1.25rem;
-      font-weight: 600;
-      background: #f0f2f5;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.1s;
-    }
-    .key-btn:active {
-      background: #e1e4e8;
-    }
-    .btn-action {
-      background: #007aff;
-      color: white;
-    }
-    .btn-action:active {
-      background: #0056b3;
-    }
-    .btn-clear {
-      background: #ff3b30;
-      color: white;
-    }
-    .btn-clear:active {
-      background: #d70015;
-    }
-    /* パスワードドット表示 */
-    .pass-dots {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin: 20px 0;
-    }
-    .dot {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 2px solid #ccc;
-    }
-    .dot.filled {
-      background: #007aff;
-      border-color: #007aff;
-    }
-    /* 完了表示 */
-    .success-icon {
-      width: 64px;
-      height: 64px;
-      background: #34c759;
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      margin: 0 auto 16px auto;
-    }
-    .card-prompt {
-      border: 2px dashed #007aff;
-      padding: 30px 20px;
-      border-radius: 12px;
-      margin-top: 15px;
-      background: #f0f8ff;
-    }
-    .config-box {
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid #eee;
-    }
-    .input-field {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Tong P2P ＆ NFCパスワード決済システム</title>
+
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #060913;
+            --panel-bg: rgba(15, 23, 42, 0.85);
+            --accent-color: #00f2fe;
+            --accent-glow: rgba(0, 242, 254, 0.4);
+            --accent-purple: #4facfe;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border-color: rgba(56, 189, 248, 0.25);
+            --border-highlight: rgba(0, 242, 254, 0.6);
+            --success-color: #00f5a0;
+            --danger-color: #ff4b72;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(79, 172, 254, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(0, 242, 254, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 440px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            animation: scanline 4s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title span.title-text {
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-tag {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background-color: rgba(51, 65, 85, 0.5);
+            color: var(--text-sub);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .status-tag.online {
+            background-color: rgba(0, 245, 160, 0.15);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+            box-shadow: 0 0 10px rgba(0, 245, 160, 0.3);
+        }
+
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-color) 100%);
+            color: #060913;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.6);
+        }
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-sub);
+            box-shadow: none;
+        }
+
+        .input-box {
+            width: 100%;
+            padding: 14px;
+            background-color: rgba(6, 9, 19, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--accent-color);
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 6px;
+            outline: none;
+            margin: 16px 0;
+        }
+        .input-box:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .my-id-card {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.08) 0%, rgba(79, 172, 254, 0.03) 100%);
+            border: 1px solid var(--border-highlight);
+            padding: 20px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* テンキー表示 */
+        .display-val {
+            background-color: rgba(6, 9, 19, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: right;
+            margin-bottom: 18px;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .key-btn {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 1.3rem;
+            font-weight: 600;
+            padding: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .key-btn:hover {
+            border-color: var(--accent-color);
+            background: rgba(56, 189, 248, 0.15);
+        }
+
+        /* NFC 案内表示 */
+        .touch-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 36px 20px;
+            border: 2px dashed var(--accent-color);
+            border-radius: 16px;
+            margin: 20px 0;
+            background: rgba(0, 242, 254, 0.03);
+            text-align: center;
+        }
+        .card-icon {
+            font-size: 3.5rem;
+            margin-bottom: 12px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        /* 完了メッセージ */
+        .success-box {
+            text-align: center;
+            padding: 30px 10px;
+        }
+        .checkmark {
+            font-size: 5rem;
+            color: var(--success-color);
+            margin-bottom: 12px;
+            text-shadow: 0 0 20px rgba(0, 245, 160, 0.6);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-highlight);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            display: none;
+            z-index: 100;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
 
+<div id="notification" class="notification">通知</div>
+
 <div class="container">
-  <div id="connectionStatus" class="status-badge">接続待機中...</div>
+    <div class="panel">
+        <div class="panel-title">
+            <span class="title-text">Tong 決済システム</span>
+            <span id="p2pStatusTag" class="status-tag">オフライン</span>
+        </div>
 
-  <!-- 【Android 非対応環境】 案内端末画面 -->
-  <div id="screenAndroidUnsupported" class="screen">
-    <h2>案内端末</h2>
-    <div id="unsupportedGuide" class="card-prompt">
-      <p style="font-size: 1.1rem; color: #666;">iPhoneで価格を入力してください</p>
+        <div id="screenRoleSelect" class="screen active">
+            <p style="color: var(--text-sub); font-size: 0.9rem; margin-bottom: 16px;">端末の役割を選択してください</p>
+            <button class="btn" onclick="selectRole('iphone')">📱 iPhone（決済登録端末）</button>
+            <button class="btn btn-secondary" onclick="selectRole('reader')">📲 Android（読み取り専用機）</button>
+            <button class="btn btn-secondary" onclick="selectRole('guide')" style="margin-top: 10px;">📺 非対応端末（案内・パスワード入力）</button>
+        </div>
+
+        <div id="screenPairing" class="screen">
+            <div class="my-id-card">
+                <div style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 6px;">この端末のペアリング番号 (4桁)</div>
+                <strong id="myPeerIdDisplay" style="font-size: 2.2rem; letter-spacing: 6px; color: var(--accent-color);">----</strong>
+            </div>
+
+            <p style="font-size: 0.85rem; color: var(--text-sub); text-align: center;">接続先の4桁ペアリング番号（例: 4748）を入力</p>
+            <input type="number" id="remotePeerIdInput" class="input-box" placeholder="4748" maxlength="4" pattern="\d*">
+            <button class="btn" onclick="connectToRemotePeer()">P2Pペアリング接続</button>
+        </div>
+
+        <div id="screenIphoneKeypad" class="screen">
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 0.8rem; color: var(--text-sub);">認証用パスワード設定</label>
+                <input type="password" id="setAuthPasswordInput" class="input-box" style="font-size: 1.2rem; padding: 8px; margin: 4px 0 12px 0;" placeholder="パスワードを入力">
+            </div>
+
+            <div class="display-val" id="priceDisplay">¥0</div>
+            <div class="keypad">
+                <button class="key-btn" onclick="appendKey('1')">1</button>
+                <button class="key-btn" onclick="appendKey('2')">2</button>
+                <button class="key-btn" onclick="appendKey('3')">3</button>
+                <button class="key-btn" onclick="appendKey('4')">4</button>
+                <button class="key-btn" onclick="appendKey('5')">5</button>
+                <button class="key-btn" onclick="appendKey('6')">6</button>
+                <button class="key-btn" onclick="appendKey('7')">7</button>
+                <button class="key-btn" onclick="appendKey('8')">8</button>
+                <button class="key-btn" onclick="appendKey('9')">9</button>
+                <button class="key-btn" onclick="clearKey()">C</button>
+                <button class="key-btn" onclick="appendKey('0')">0</button>
+                <button class="key-btn" onclick="appendKey('00')">00</button>
+            </div>
+            <button class="btn" style="margin-top: 16px;" onclick="submitPaymentRequest()">金額と案内を送信</button>
+        </div>
+
+        <div id="screenGuideNotice" class="screen">
+            <div class="touch-zone">
+                <div class="card-icon">💳</div>
+                <div style="font-weight: bold; font-size: 1.6rem; color: var(--accent-color); margin-bottom: 12px;" id="noticePriceDisplay">¥0</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-main);">カードをかざしてください</div>
+                <div style="font-size: 0.8rem; color: var(--text-sub); margin-top: 8px;">読み取り機端末にカードをタッチしてください</div>
+            </div>
+        </div>
+
+        <div id="screenNfcReader" class="screen">
+            <div class="touch-zone">
+                <div class="card-icon">📱</div>
+                <div style="font-weight: bold; font-size: 1.1rem; color: var(--accent-color); margin-bottom: 8px;">NFC読み取り機 待機中</div>
+                <div style="font-size: 0.85rem; color: var(--text-main);" id="nfcReaderStatus">ここにICカードを近づけてください</div>
+            </div>
+        </div>
+
+        <div id="screenPasswordInput" class="screen">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <div style="font-size: 0.85rem; color: var(--text-sub);">カード認識完了</div>
+                <h3 style="color: var(--accent-color); font-size: 1.3rem; margin-top: 4px;">パスワードを入力してください</h3>
+            </div>
+            <input type="password" id="inputAuthPassword" class="input-box" placeholder="****" maxlength="8">
+            <button class="btn" onclick="verifyPassword()">認証実行</button>
+        </div>
+
+        <div id="screenSuccess" class="screen">
+            <div class="success-box">
+                <div class="checkmark">✔</div>
+                <h2 style="color: var(--text-main); margin-bottom: 8px;">ありがとうございます</h2>
+                <p style="font-size: 0.85rem; color: var(--text-sub);" id="successDetail">決済処理が完了しました。</p>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- 【Android 対応環境】 読み取り機画面 -->
-  <div id="screenAndroidSupported" class="screen">
-    <h2>ICカード読み取り機</h2>
-    <div id="supportedGuide">
-      <p style="font-size: 1.1rem; color: #666; margin-bottom: 10px;">タッチを待機中...</p>
-      <div id="readAmountDisplay" class="price-display">￥0</div>
-      <button class="key-btn btn-action" style="width: 100%;" onclick="simulateCardTouch()">[デモ] カードをかざす</button>
-    </div>
-  </div>
-
-  <!-- 【iPhone】 決済・テンキー入力・パスワード画面 -->
-  <div id="screenIPhone" class="screen">
-    <h2 id="iphoneHeader">価格入力</h2>
-    
-    <!-- モード1: 価格入力 -->
-    <div id="iphoneModePrice">
-      <div id="priceDisplay" class="price-display">￥0</div>
-      <div class="keypad">
-        <button class="key-btn" onclick="appendPrice('1')">1</button>
-        <button class="key-btn" onclick="appendPrice('2')">2</button>
-        <button class="key-btn" onclick="appendPrice('3')">3</button>
-        <button class="key-btn" onclick="appendPrice('4')">4</button>
-        <button class="key-btn" onclick="appendPrice('5')">5</button>
-        <button class="key-btn" onclick="appendPrice('6')">6</button>
-        <button class="key-btn" onclick="appendPrice('7')">7</button>
-        <button class="key-btn" onclick="appendPrice('8')">8</button>
-        <button class="key-btn" onclick="appendPrice('9')">9</button>
-        <button class="key-btn btn-clear" onclick="clearPrice()">C</button>
-        <button class="key-btn" onclick="appendPrice('0')">0</button>
-        <button class="key-btn btn-action" onclick="submitPrice()">送信</button>
-      </div>
-      <div class="config-box">
-        <button class="key-btn" style="width:100%; font-size:0.9rem;" onclick="showPasswordSettings()">パスワード変更設定</button>
-      </div>
-    </div>
-
-    <!-- モード2: パスワード入力 -->
-    <div id="iphoneModePassword" style="display: none;">
-      <p>パスワードを入力してください</p>
-      <div class="pass-dots">
-        <div class="dot" id="dot0"></div>
-        <div class="dot" id="dot1"></div>
-        <div class="dot" id="dot2"></div>
-        <div class="dot" id="dot3"></div>
-      </div>
-      <div class="keypad">
-        <button class="key-btn" onclick="appendPass('1')">1</button>
-        <button class="key-btn" onclick="appendPass('2')">2</button>
-        <button class="key-btn" onclick="appendPass('3')">3</button>
-        <button class="key-btn" onclick="appendPass('4')">4</button>
-        <button class="key-btn" onclick="appendPass('5')">5</button>
-        <button class="key-btn" onclick="appendPass('6')">6</button>
-        <button class="key-btn" onclick="appendPass('7')">7</button>
-        <button class="key-btn" onclick="appendPass('8')">8</button>
-        <button class="key-btn" onclick="appendPass('9')">9</button>
-        <button class="key-btn btn-clear" onclick="clearPass()">C</button>
-        <button class="key-btn" onclick="appendPass('0')">0</button>
-      </div>
-    </div>
-
-    <!-- モード3: パスワード設定 -->
-    <div id="iphoneModeConfig" style="display: none;">
-      <h3>パスワード変更</h3>
-      <input type="password" id="newPasswordInput" class="input-field" placeholder="新しい4桁のパスワード" maxlength="4">
-      <button class="key-btn btn-action" style="width:100%; margin-top:10px;" onclick="saveNewPassword()">保存</button>
-      <button class="key-btn" style="width:100%; margin-top:5px;" onclick="cancelPasswordSettings()">キャンセル</button>
-    </div>
-
-    <!-- モード4: 完了画面 -->
-    <div id="iphoneModeSuccess" style="display: none;">
-      <div class="success-icon">✓</div>
-      <h3 style="font-size: 1.5rem; margin-bottom: 10px;">ありがとうございます</h3>
-      <p style="color: #666;">決済が正常に完了しました</p>
-    </div>
-  </div>
-
 </div>
 
 <script>
-  // システム状態定義
-  let peer = null;
-  let conn = null;
-  let currentPassword = "4748"; // 初期パスワード
-  let enteredPassword = "";
-  let currentPrice = "0";
-  let isNFCSupported = false;
-  let isIOS = false;
+    const ID_PREFIX = "tong-p2p-";
 
-  // 初期化処理（自動環境判定）
-  window.addEventListener('DOMContentLoaded', () => {
-    detectEnvironment();
-    initPeer();
-  });
+    let peer = null;
+    let conn = null;
+    let myRole = ""; // "iphone" | "reader" | "guide"
+    let myShortId = "";
+    let currentPrice = "0";
+    let setPasswordValue = "";
+    let scannedCardId = "";
 
-  // OS・環境判定関数
-  function detectEnvironment() {
-    const ua = navigator.userAgent;
-    isIOS = /iPhone|iPad|iPod/i.test(ua);
-    // NFC対応機能（Web NFC）の有無判定
-    isNFCSupported = ('NDEFReader' in window);
+    // NFC用
+    let nfcNDEFReader = null;
+    let nfcAbortController = null;
 
-    // 画面の初期非表示（自動判定に必要なUI以外は出さない）
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-
-    if (isIOS) {
-      document.getElementById('screenIPhone').classList.add('active');
-    } else {
-      if (isNFCSupported) {
-        document.getElementById('screenAndroidSupported').classList.add('active');
-      } else {
-        document.getElementById('screenAndroidUnsupported').classList.add('active');
-      }
-    }
-  }
-
-  // PeerJS 通信初期化 (固定ID 4748 連携用)
-  function initPeer() {
-    const statusEl = document.getElementById('connectionStatus');
-    
-    // iPhone側はクライアント、Android側をホスト（4748）として通信確立
-    if (!isIOS) {
-      peer = new Peer('4748-host-device');
-      peer.on('open', (id) => {
-        statusEl.textContent = "接続待機中 (ホスト)";
-      });
-      peer.on('connection', (c) => {
-        conn = c;
-        setupConnection();
-      });
-    } else {
-      peer = new Peer();
-      peer.on('open', () => {
-        statusEl.textContent = "接続試行中...";
-        conn = peer.connect('4748-host-device');
-        setupConnection();
-      });
-    }
-
-    peer.on('error', (err) => {
-      console.log('PeerJS Error: ', err);
-      statusEl.textContent = "オフライン動作中";
+    document.addEventListener("DOMContentLoaded", () => {
+        // 初期状態設定
     });
-  }
 
-  function setupConnection() {
-    const statusEl = document.getElementById('connectionStatus');
-    statusEl.textContent = "接続完了";
-    statusEl.classList.add('online');
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        const target = document.getElementById(screenId);
+        if (target) target.classList.add('active');
+    }
 
-    conn.on('data', (data) => {
-      handleIncomingData(data);
-    });
-  }
+    function notify(msg) {
+        const el = document.getElementById("notification");
+        el.textContent = msg;
+        el.style.display = "block";
+        setTimeout(() => { el.style.display = "none"; }, 3500);
+    }
 
-  // 受信データのハンドリング
-  function handleIncomingData(data) {
-    if (data.type === 'PRICE_SET') {
-      currentPrice = data.value;
-      if (!isIOS) {
-        if (!isNFCSupported) {
-          // 非対応環境案内表示
-          document.getElementById('unsupportedGuide').innerHTML = `
-            <p style="font-size:0.9rem; color:#666;">価格: ￥${currentPrice}</p>
-            <p style="font-size:1.3rem; font-weight:bold; color:#007aff; margin-top:10px;">
-              価格とカードをかざしてください
-            </p>
-          `;
-        } else {
-          // 対応環境読み取り機表示
-          document.getElementById('readAmountDisplay').textContent = `￥${currentPrice}`;
+    // 1. 役割選択
+    function selectRole(role) {
+        myRole = role;
+        initPeerJS();
+        showScreen("screenPairing");
+    }
+
+    // 2. PeerJS 短縮ID (4桁) 通信機能
+    function initPeerJS() {
+        myShortId = Math.floor(1000 + Math.random() * 9000).toString();
+        const fullPeerId = ID_PREFIX + myShortId;
+
+        peer = new Peer(fullPeerId);
+
+        peer.on('open', (id) => {
+            document.getElementById("myPeerIdDisplay").textContent = myShortId;
+            updateP2PStatus(false);
+        });
+
+        peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                initPeerJS();
+            } else {
+                notify("P2Pエラー: " + err.type);
+            }
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            setupP2PConnectionHandlers();
+            notify("P2P接続を確立しました");
+        });
+    }
+
+    function connectToRemotePeer() {
+        const inputCode = document.getElementById("remotePeerIdInput").value.trim();
+        if (!inputCode) {
+            notify("4桁ペアリング番号を入力してください");
+            return;
         }
-      }
-    } else if (data.type === 'CARD_TOUCHED') {
-      if (isIOS) {
-        // カード読み取り通知を受け取ったらパスワード入力へ
-        showPasswordInput();
-      }
-    } else if (data.type === 'PAYMENT_COMPLETE') {
-      if (!isIOS) {
-        if (isNFCSupported) {
-          document.getElementById('readAmountDisplay').textContent = "￥0";
-          alert("決済が完了しました");
+
+        const targetFullId = ID_PREFIX + inputCode;
+        notify("番号 " + inputCode + " へ接続中...");
+        conn = peer.connect(targetFullId);
+        setupP2PConnectionHandlers();
+    }
+
+    function setupP2PConnectionHandlers() {
+        conn.on('open', () => {
+            updateP2PStatus(true);
+            notify("P2P接続成功！");
+
+            // 役割に応じた初期画面へ自動遷移
+            if (myRole === "iphone") {
+                showScreen("screenIphoneKeypad");
+            } else if (myRole === "reader") {
+                showScreen("screenNfcReader");
+                startNfcReaderMode();
+            } else if (myRole === "guide") {
+                showScreen("screenGuideNotice");
+            }
+        });
+
+        conn.on('data', (data) => {
+            handleIncomingP2PData(data);
+        });
+
+        conn.on('close', () => {
+            updateP2PStatus(false);
+            notify("P2P接続が切断されました");
+        });
+    }
+
+    function updateP2PStatus(isConnected) {
+        const tag = document.getElementById("p2pStatusTag");
+        if (isConnected) {
+            tag.textContent = "P2P接続完了";
+            tag.classList.add("online");
         } else {
-          document.getElementById('unsupportedGuide').innerHTML = `
-            <div class="success-icon">✓</div>
-            <p style="font-size: 1.2rem; font-weight:bold;">ありがとうございます</p>
-          `;
-          setTimeout(() => {
-            document.getElementById('unsupportedGuide').innerHTML = `
-              <p style="font-size: 1.1rem; color: #666;">iPhoneで価格を入力してください</p>
-            `;
-          }, 3000);
+            tag.textContent = "未接続";
+            tag.classList.remove("online");
         }
-      }
-    }
-  }
-
-  // --- iPhone: テンキー入力処理 ---
-  function appendPrice(num) {
-    if (currentPrice === "0") {
-      currentPrice = num;
-    } else {
-      currentPrice += num;
-    }
-    document.getElementById('priceDisplay').textContent = `￥${currentPrice}`;
-  }
-
-  function clearPrice() {
-    currentPrice = "0";
-    document.getElementById('priceDisplay').textContent = `￥${currentPrice}`;
-  }
-
-  function submitPrice() {
-    if (currentPrice === "0") return;
-
-    if (conn && conn.open) {
-      conn.send({ type: 'PRICE_SET', value: currentPrice });
     }
 
-    // 非対応環境のiPhoneの場合は直接パスワード入力画面へ（対応環境では読み取りシグナルを待つ）
-    if (!isNFCSupported && !isIOS) {
-      // Android側の画面切り替えロジック
-    } else if (isIOS) {
-      // 相手端末のタイプに応じて即時またはタッチ待機
-      showPasswordInput();
+    function sendP2PData(data) {
+        if (conn && conn.open) {
+            conn.send(data);
+        }
     }
-  }
 
-  // --- パスワード照合ロジック ---
-  function showPasswordInput() {
-    document.getElementById('iphoneHeader').textContent = "認証";
-    document.getElementById('iphoneModePrice').style.display = 'none';
-    document.getElementById('iphoneModePassword').style.display = 'block';
-    enteredPassword = "";
-    updateDots();
-  }
+    // 3. P2Pメッセージ受配信制御
+    function handleIncomingP2PData(data) {
+        if (data.type === "PAYMENT_INFO") {
+            // iPhone -> 非対応端末 & 読み取り機：価格およびパスワード情報の受信
+            currentPrice = data.price;
+            setPasswordValue = data.password;
 
-  function appendPass(num) {
-    if (enteredPassword.length < 4) {
-      enteredPassword += num;
-      updateDots();
+            if (myRole === "guide") {
+                document.getElementById("noticePriceDisplay").textContent = "¥" + Number(currentPrice).toLocaleString();
+                showScreen("screenGuideNotice");
+            }
+        } else if (data.type === "NFC_SCANNED") {
+            // 読み取り機 -> 非対応端末：カードID受信
+            scannedCardId = data.cardId;
+            if (myRole === "guide") {
+                notify("カードを読み取りました。パスワードを入力してください。");
+                showScreen("screenPasswordInput");
+            }
+        } else if (data.type === "PAYMENT_SUCCESS") {
+            // 認証成功通知を各端末へ同期
+            document.getElementById("successDetail").textContent = `金額 ¥${Number(data.price).toLocaleString()} の決済が完了しました。`;
+            showScreen("screenSuccess");
+            setTimeout(() => {
+                resetToRoleHome();
+            }, 4000);
+        }
     }
-    if (enteredPassword.length === 4) {
-      setTimeout(verifyPassword, 200);
+
+    // 4. iPhone（決済登録端末）金額・パスワード設定＆送信
+    function appendKey(val) {
+        if (currentPrice === "0") {
+            currentPrice = val === "00" ? "0" : val;
+        } else {
+            if (currentPrice.length < 7) {
+                currentPrice += val;
+            }
+        }
+        document.getElementById("priceDisplay").textContent = "¥" + Number(currentPrice).toLocaleString();
     }
-  }
 
-  function clearPass() {
-    enteredPassword = "";
-    updateDots();
-  }
-
-  function updateDots() {
-    for (let i = 0; i < 4; i++) {
-      const dot = document.getElementById(`dot${i}`);
-      if (i < enteredPassword.length) {
-        dot.classList.add('filled');
-      } else {
-        dot.classList.remove('filled');
-      }
+    function clearKey() {
+        currentPrice = "0";
+        document.getElementById("priceDisplay").textContent = "¥0";
     }
-  }
 
-  function verifyPassword() {
-    if (enteredPassword === currentPassword) {
-      // パスワード一致
-      document.getElementById('iphoneModePassword').style.display = 'none';
-      document.getElementById('iphoneModeSuccess').style.display = 'block';
-      document.getElementById('iphoneHeader').textContent = "完了";
+    function submitPaymentRequest() {
+        const pwd = document.getElementById("setAuthPasswordInput").value.trim();
+        if (currentPrice === "0") {
+            notify("金額を入力してください");
+            return;
+        }
+        if (!pwd) {
+            notify("認証用パスワードを設定してください");
+            return;
+        }
 
-      if (conn && conn.open) {
-        conn.send({ type: 'PAYMENT_COMPLETE' });
-      }
+        setPasswordValue = pwd;
 
-      setTimeout(() => {
-        // リセット処理
-        document.getElementById('iphoneModeSuccess').style.display = 'none';
-        document.getElementById('iphoneModePrice').style.display = 'block';
-        document.getElementById('iphoneHeader').textContent = "価格入力";
-        clearPrice();
-        enteredPassword = "";
-      }, 3000);
-    } else {
-      alert("パスワードが正しくありません");
-      clearPass();
+        // 全端末へ通信送信
+        sendP2PData({
+            type: "PAYMENT_INFO",
+            price: currentPrice,
+            password: setPasswordValue
+        });
+
+        notify("非対応端末へ案内を送信しました");
     }
-  }
 
-  // --- パスワード変更設定 ---
-  function showPasswordSettings() {
-    document.getElementById('iphoneModePrice').style.display = 'none';
-    document.getElementById('iphoneModeConfig').style.display = 'block';
-  }
+    // 5. Android (読み取り専用機) Web NFC機能
+    async function startNfcReaderMode() {
+        if (!('NDEFReader' in window)) {
+            document.getElementById("nfcReaderStatus").textContent = "【非対応ブラウザ】タップしてカード読み取りシミュレート";
+            document.getElementById("screenNfcReader").onclick = () => {
+                const simulatedId = "NFC-CARD-REAL-7788";
+                sendP2PData({ type: "NFC_SCANNED", cardId: simulatedId });
+                notify("カード読み取り＆送信完了");
+            };
+            return;
+        }
 
-  function saveNewPassword() {
-    const newPass = document.getElementById('newPasswordInput').value;
-    if (newPass.length === 4 && /^\d+$/.test(newPass)) {
-      currentPassword = newPass;
-      alert("パスワードを変更しました");
-      cancelPasswordSettings();
-    } else {
-      alert("4桁の数字を入力してください");
+        try {
+            nfcAbortController = new AbortController();
+            nfcNDEFReader = new NDEFReader();
+
+            await nfcNDEFReader.scan({ signal: nfcAbortController.signal });
+            document.getElementById("nfcReaderStatus").textContent = "NFCカードのタッチを待機中...";
+
+            nfcNDEFReader.addEventListener("reading", ({ serialNumber }) => {
+                const cardId = serialNumber || "NFC-CARD-DEFAULT-ID";
+                sendP2PData({ type: "NFC_SCANNED", cardId: cardId });
+                notify("NFCカード読み取り完了＆送信");
+            });
+
+        } catch (error) {
+            console.error("NFC Error:", error);
+            document.getElementById("nfcReaderStatus").textContent = "NFCエラー: " + error.message;
+        }
     }
-  }
 
-  function cancelPasswordSettings() {
-    document.getElementById('newPasswordInput').value = "";
-    document.getElementById('iphoneModeConfig').style.display = 'none';
-    document.getElementById('iphoneModePrice').style.display = 'block';
-  }
+    // 6. 非対応端末（案内・入力機）パスワード照合
+    function verifyPassword() {
+        const inputPwd = document.getElementById("inputAuthPassword").value.trim();
+        if (!inputPwd) {
+            notify("パスワードを入力してください");
+            return;
+        }
 
-  // --- デモ用: カード読み取りシミュレート ---
-  function simulateCardTouch() {
-    if (currentPrice === "0") {
-      alert("価格が設定されていません");
-      return;
+        if (inputPwd === setPasswordValue) {
+            // パスワード照合成功
+            document.getElementById("successDetail").textContent = `金額 ¥${Number(currentPrice).toLocaleString()} の決済が完了しました。`;
+            showScreen("screenSuccess");
+
+            // iPhoneおよび読み取り機に成功通知を送信
+            sendP2PData({
+                type: "PAYMENT_SUCCESS",
+                price: currentPrice
+            });
+
+            setTimeout(() => {
+                resetToRoleHome();
+            }, 4000);
+        } else {
+            notify("パスワードが正しくありません");
+            document.getElementById("inputAuthPassword").value = "";
+        }
     }
-    alert("カードが読み取られました。iPhoneでパスワードを入力してください。");
-    if (conn && conn.open) {
-      conn.send({ type: 'CARD_TOUCHED' });
+
+    // 7. 初期化・リセット
+    function resetToRoleHome() {
+        currentPrice = "0";
+        document.getElementById("priceDisplay").textContent = "¥0";
+        document.getElementById("inputAuthPassword").value = "";
+
+        if (myRole === "iphone") {
+            showScreen("screenIphoneKeypad");
+        } else if (myRole === "reader") {
+            showScreen("screenNfcReader");
+        } else if (myRole === "guide") {
+            document.getElementById("noticePriceDisplay").textContent = "¥0";
+            showScreen("screenGuideNotice");
+        }
     }
-  }
 </script>
 
 </body>
