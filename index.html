@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ローカル顔認証システム</title>
-  <!-- face-api.js の読み込み -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <!-- deferを外し、確実に最初に読み込む形に変更 -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -150,13 +150,18 @@
     const logText = document.getElementById('log');
     const userList = document.getElementById('userList');
 
-    let registeredFaces = []; // { name: string, descriptor: Float32Array }
+    let registeredFaces = [];
     let currentDescriptor = null;
     let isModelsLoaded = false;
 
     // 1. 初期化：モデルの読み込み & カメラ起動
     async function init() {
       try {
+        // faceapiオブジェクトが存在するかチェック
+        if (typeof faceapi === 'undefined') {
+          throw new Error('face-api.js の読み込みに失敗しました。インターネット接続を確認するか、CDNのURLを確認してください。');
+        }
+
         logText.textContent = 'AIモデルを読み込んでいます...';
         
         // vladmandicの軽量モデルをCDNからロード
@@ -211,7 +216,7 @@
           if (registeredFaces.length > 0) {
             const faceMatcher = new faceapi.FaceMatcher(
               registeredFaces.map(f => new faceapi.LabeledFaceDescriptors(f.name, [f.descriptor])),
-              0.55 // 判定しきい値 (数値が小さいほど厳密)
+              0.55 // 判定しきい値
             );
             const match = faceMatcher.findBestMatch(detection.descriptor);
             
@@ -247,9 +252,6 @@
         return;
       }
 
-      // 特徴量（Float32Array）を通常の配列に変換して保存用に整形
-      const descriptorArray = Array.from(currentDescriptor);
-      
       registeredFaces.push({
         name: name,
         descriptor: currentDescriptor
@@ -264,7 +266,6 @@
 
     // 4. ローカルストレージ保存・読み込み機能
     function saveRegisteredFaces() {
-      // Float32Arrayを通常のArrayにしてJSON化
       const serializableData = registeredFaces.map(f => ({
         name: f.name,
         descriptor: Array.from(f.descriptor)
@@ -280,7 +281,7 @@
         const parsed = JSON.parse(data);
         registeredFaces = parsed.map(f => ({
           name: f.name,
-          descriptor: new Float32Array(f.descriptor) // JSONからFloat32Arrayに復元
+          descriptor: new Float32Array(f.descriptor)
         }));
       } catch (e) {
         console.error('データの読み込みに失敗しました:', e);
@@ -312,8 +313,10 @@
       });
     }
 
-    // 起動
-    init();
+    // ページ全体の読み込みが完了してからinitを実行する
+    window.addEventListener('DOMContentLoaded', () => {
+      init();
+    });
   </script>
 </body>
 </html>
