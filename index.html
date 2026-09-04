@@ -1,907 +1,319 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Tong Ultimate P2P & NFC Password Payment System</title>
-
-    <!-- PeerJS CDN -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-    <style>
-        :root {
-            --bg-color: #030712;
-            --panel-bg: rgba(15, 23, 42, 0.88);
-            --accent-color: #00f2fe;
-            --accent-glow: rgba(0, 242, 254, 0.45);
-            --accent-purple: #4facfe;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --border-color: rgba(56, 189, 248, 0.25);
-            --border-highlight: rgba(0, 242, 254, 0.65);
-            --success-color: #00f5a0;
-            --success-glow: rgba(0, 245, 160, 0.4);
-            --danger-color: #ff4b72;
-            --danger-glow: rgba(255, 75, 114, 0.4);
-            --warning-color: #ffb703;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            user-select: none;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 15% 15%, rgba(79, 172, 254, 0.15) 0%, transparent 45%),
-                radial-gradient(circle at 85% 85%, rgba(0, 242, 254, 0.1) 0%, transparent 45%),
-                radial-gradient(circle at 50% 50%, rgba(0, 245, 160, 0.03) 0%, transparent 60%);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            overflow-x: hidden;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 480px;
-        }
-
-        .panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-color);
-            border-radius: 28px;
-            padding: 24px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 242, 254, 0.12);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .panel::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-            animation: scanline 3.5s linear infinite;
-        }
-
-        @keyframes scanline {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-        }
-
-        .panel-title {
-            font-size: 1.15rem;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .panel-title span.title-text {
-            background: linear-gradient(135deg, #ffffff 0%, var(--accent-color) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .status-tag {
-            font-size: 0.72rem;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background-color: rgba(51, 65, 85, 0.5);
-            color: var(--text-sub);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status-tag.online {
-            background-color: rgba(0, 245, 160, 0.15);
-            color: var(--success-color);
-            border: 1px solid var(--success-color);
-            box-shadow: 0 0 12px rgba(0, 245, 160, 0.35);
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background-color: currentColor;
-        }
-
-        .screen {
-            display: none;
-        }
-
-        .screen.active {
-            display: block;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-color) 100%);
-            color: #060913;
-            border: none;
-            border-radius: 14px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-top: 10px;
-            box-shadow: 0 4px 18px var(--accent-glow);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(0, 242, 254, 0.6);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid var(--border-color);
-            color: var(--text-sub);
-            box-shadow: none;
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--accent-color);
-            color: var(--text-main);
-            box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ff4b72 0%, #ff8c42 100%);
-            color: #fff;
-            box-shadow: 0 4px 18px var(--danger-glow);
-        }
-
-        .input-box {
-            width: 100%;
-            padding: 12px 16px;
-            background-color: rgba(6, 9, 19, 0.85);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            color: var(--accent-color);
-            font-size: 1.6rem;
-            font-weight: 700;
-            text-align: center;
-            letter-spacing: 4px;
-            outline: none;
-            margin: 12px 0;
-            transition: all 0.2s ease;
-        }
-
-        .input-box:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 18px var(--accent-glow);
-        }
-
-        .my-id-card {
-            background: linear-gradient(135deg, rgba(0, 242, 254, 0.08) 0%, rgba(79, 172, 254, 0.03) 100%);
-            border: 1px solid var(--border-highlight);
-            padding: 18px;
-            border-radius: 18px;
-            font-size: 0.85rem;
-            color: var(--text-main);
-            margin-bottom: 18px;
-            text-align: center;
-            position: relative;
-        }
-
-        .display-val {
-            background-color: rgba(6, 9, 19, 0.85);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 16px;
-            font-size: 2.2rem;
-            font-weight: 800;
-            text-align: right;
-            margin-bottom: 16px;
-            color: var(--accent-color);
-            text-shadow: 0 0 12px var(--accent-glow);
-            word-break: break-all;
-        }
-
-        .keypad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-
-        .key-btn {
-            background: rgba(30, 41, 59, 0.55);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            font-size: 1.35rem;
-            font-weight: 700;
-            padding: 16px 0;
-            border-radius: 14px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .key-btn:hover {
-            border-color: var(--accent-color);
-            background: rgba(56, 189, 248, 0.18);
-            transform: scale(1.02);
-        }
-
-        .key-btn:active {
-            transform: scale(0.96);
-        }
-
-        .touch-zone {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 16px;
-            border: 2px dashed var(--accent-color);
-            border-radius: 20px;
-            margin: 16px 0;
-            background: rgba(0, 242, 254, 0.03);
-            text-align: center;
-            position: relative;
-        }
-
-        .card-icon {
-            font-size: 3.8rem;
-            margin-bottom: 10px;
-            animation: floatPulse 2.5s ease-in-out infinite;
-        }
-
-        @keyframes floatPulse {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-6px) scale(1.06); }
-        }
-
-        .success-box {
-            text-align: center;
-            padding: 24px 10px;
-        }
-
-        .checkmark {
-            font-size: 4.8rem;
-            color: var(--success-color);
-            margin-bottom: 10px;
-            text-shadow: 0 0 25px rgba(0, 245, 160, 0.7);
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes popIn {
-            0% { transform: scale(0); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .notification {
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 420px;
-            padding: 12px 20px;
-            border-radius: 14px;
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid var(--border-highlight);
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8);
-            display: none;
-            z-index: 1000;
-            font-size: 0.85rem;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-
-        /* 120機能拡張用のスタイル要素 */
-        .telemetry-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-top: 12px;
-            font-size: 0.72rem;
-            color: var(--text-sub);
-        }
-
-        .telemetry-item {
-            background: rgba(6, 9, 19, 0.6);
-            padding: 6px 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .history-list {
-            max-height: 140px;
-            overflow-y: auto;
-            margin-top: 10px;
-            padding-right: 4px;
-        }
-
-        .history-item {
-            font-size: 0.75rem;
-            padding: 8px 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            margin-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
-            border-left: 3px solid var(--accent-color);
-        }
-
-        .quick-amounts {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-
-        .quick-btn {
-            flex: 1;
-            padding: 8px 0;
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid var(--border-color);
-            color: var(--text-sub);
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .quick-btn:hover {
-            border-color: var(--accent-color);
-            color: var(--text-main);
-        }
-
-        .battery-indicator {
-            font-size: 0.7rem;
-            color: var(--text-sub);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .toggle-switch {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 0.8rem;
-            color: var(--text-sub);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ローカル顔認証システム</title>
+  <!-- face-api.js の読み込み -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 640px;
+    }
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 640px;
+      aspect-ratio: 4 / 3;
+      background-color: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .btn-clear {
+      background-color: #dc3545;
+    }
+    .btn-clear:hover {
+      background-color: #bd2130;
+    }
+    .status-panel {
+      width: 100%;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .status-panel p {
+      margin-bottom: 8px;
+    }
+    #log {
+      font-weight: bold;
+      color: #007bff;
+    }
+    .user-list {
+      margin-top: 10px;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .user-chip {
+      background: #e9ecef;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+    }
+  </style>
 </head>
 <body>
 
-<div id="notification" class="notification">通知メッセージ</div>
+  <h1>ローカル顔認証システム</h1>
 
-<div class="container">
-    <div class="panel">
-        <div class="panel-header">
-            <div class="panel-title">
-                <span class="title-text">Tong P2P System</span>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <div id="batteryStatus" class="battery-indicator">🔋 100%</div>
-                <div id="p2pStatusTag" class="status-tag"><span class="status-dot"></span>オフライン</div>
-            </div>
-        </div>
-
-        <!-- 1. 役割選択画面 -->
-        <div id="screenRoleSelect" class="screen active">
-            <p style="color: var(--text-sub); font-size: 0.85rem; margin-bottom: 14px;">端末の利用役割（モード）を選択してください</p>
-            <button class="btn" onclick="selectRole('iphone')">📱 iPhone（決済登録端末）</button>
-            <button class="btn btn-secondary" onclick="selectRole('reader')">📲 Android（NFC読み取り専用機）</button>
-            <button class="btn btn-secondary" onclick="selectRole('guide')" style="margin-top: 8px;">📺 非対応端末（案内・パスワード入力）</button>
-
-            <!-- テレメトリ＆システム診断モジュール (120機能拡張の一部) -->
-            <div class="telemetry-grid" style="margin-top: 20px;">
-                <div class="telemetry-item"><span>Web NFC:</span><strong id="diagNfc">検出中</strong></div>
-                <div class="telemetry-item"><span>P2P Peer:</span><strong id="diagPeer">準備完了</strong></div>
-                <div class="telemetry-item"><span>暗号化:</span><strong>AES-256</strong></div>
-                <div class="telemetry-item"><span>応答速度:</span><strong id="diagPing">-- ms</strong></div>
-            </div>
-        </div>
-
-        <!-- 2. P2Pペアリング設定画面 -->
-        <div id="screenPairing" class="screen">
-            <div class="my-id-card">
-                <div style="font-size: 0.75rem; color: var(--text-sub); margin-bottom: 4px;">自端末ペアリングID (4桁)</div>
-                <strong id="myPeerIdDisplay" style="font-size: 2rem; letter-spacing: 5px; color: var(--accent-color);">----</strong>
-                <div style="position: absolute; right: 12px; top: 12px; font-size: 0.7rem; color: var(--text-sub);" onclick="regeneratePeerId()">🔄 再生成</div>
-            </div>
-
-            <p style="font-size: 0.8rem; color: var(--text-sub); text-align: center;">接続相手の4桁ペアリングコードを入力</p>
-            <input type="number" id="remotePeerIdInput" class="input-box" placeholder="4748" maxlength="4" pattern="\d*">
-            <button class="btn" onclick="connectToRemotePeer()">P2Pペアリング接続開始</button>
-            <button class="btn btn-secondary" onclick="showScreen('screenRoleSelect')">戻る</button>
-        </div>
-
-        <!-- 3. iPhone専用: パスワード設定 ＆ 金額入力画面 -->
-        <div id="screenIphoneKeypad" class="screen">
-            <div style="margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <label style="font-size: 0.75rem; color: var(--text-sub);">決済認証パスワード設定</label>
-                    <span style="font-size: 0.7rem; color: var(--accent-color);" onclick="generateRandomPassword()">🎲 自動生成</span>
-                </div>
-                <input type="password" id="setAuthPasswordInput" class="input-box" style="font-size: 1.1rem; padding: 8px; margin: 0 0 10px 0;" placeholder="パスワードを設定">
-            </div>
-
-            <div class="quick-amounts">
-                <button class="quick-btn" onclick="setQuickAmount(500)">¥500</button>
-                <button class="quick-btn" onclick="setQuickAmount(1000)">¥1,000</button>
-                <button class="quick-btn" onclick="setQuickAmount(3000)">¥3,000</button>
-                <button class="quick-btn" onclick="setQuickAmount(5000)">¥5,000</button>
-            </div>
-
-            <div class="display-val" id="priceDisplay">¥0</div>
-            <div class="keypad">
-                <button class="key-btn" onclick="appendKey('1')">1</button>
-                <button class="key-btn" onclick="appendKey('2')">2</button>
-                <button class="key-btn" onclick="appendKey('3')">3</button>
-                <button class="key-btn" onclick="appendKey('4')">4</button>
-                <button class="key-btn" onclick="appendKey('5')">5</button>
-                <button class="key-btn" onclick="appendKey('6')">6</button>
-                <button class="key-btn" onclick="appendKey('7')">7</button>
-                <button class="key-btn" onclick="appendKey('8')">8</button>
-                <button class="key-btn" onclick="appendKey('9')">9</button>
-                <button class="key-btn" onclick="clearKey()">C</button>
-                <button class="key-btn" onclick="appendKey('0')">0</button>
-                <button class="key-btn" onclick="appendKey('00')">00</button>
-            </div>
-            <button class="btn" style="margin-top: 12px;" onclick="submitPaymentRequest()">価格と案内を宛先へ送信</button>
-        </div>
-
-        <!-- 4. 非対応端末専用: 案内画面 ("価格とカードをかざしてください") -->
-        <div id="screenGuideNotice" class="screen">
-            <div class="touch-zone">
-                <div class="card-icon">💳</div>
-                <div style="font-weight: 800; font-size: 1.8rem; color: var(--accent-color); margin-bottom: 8px;" id="noticePriceDisplay">¥0</div>
-                <div style="font-size: 1rem; font-weight: 700; color: var(--text-main);">価格とカードをかざしてください</div>
-                <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 6px;">Android読み取り端末のNFCエリアにカードをタッチ</div>
-            </div>
-            <div class="toggle-switch">
-                <span>音声ガイダンス</span>
-                <input type="checkbox" id="voiceToggle" checked>
-            </div>
-        </div>
-
-        <!-- 5. Android専用: NFC読み取り機画面 -->
-        <div id="screenNfcReader" class="screen">
-            <div class="touch-zone">
-                <div class="card-icon" id="nfcPulseIcon">📱</div>
-                <div style="font-weight: 700; font-size: 1rem; color: var(--accent-color); margin-bottom: 6px;">NFC読み取り機 待機状態</div>
-                <div style="font-size: 0.8rem; color: var(--text-main);" id="nfcReaderStatus">ICカードを背面に近づけてください</div>
-            </div>
-            <div class="telemetry-grid">
-                <div class="telemetry-item"><span>プロトコル:</span><strong id="nfcProtocol">NFC-F / A</strong></div>
-                <div class="telemetry-item"><span>感度:</span><strong>HIGH</strong></div>
-            </div>
-        </div>
-
-        <!-- 6. 非対応端末専用: パスワード入力画面 -->
-        <div id="screenPasswordInput" class="screen">
-            <div style="text-align: center; margin-bottom: 12px;">
-                <div style="font-size: 0.75rem; color: var(--text-sub);" id="cardTypeTag">カード検知: NFC-Tag-ID</div>
-                <h3 style="color: var(--accent-color); font-size: 1.2rem; margin-top: 2px;">パスワードを入力してください</h3>
-            </div>
-            <input type="password" id="inputAuthPassword" class="input-box" placeholder="****" maxlength="12">
-            <button class="btn" onclick="verifyPassword()">認証と決済を実行</button>
-        </div>
-
-        <!-- 7. 完了画面 -->
-        <div id="screenSuccess" class="screen">
-            <div class="success-box">
-                <div class="checkmark">✔</div>
-                <h2 style="color: var(--text-main); margin-bottom: 6px;">ありがとうございます</h2>
-                <p style="font-size: 0.8rem; color: var(--text-sub);" id="successDetail">決済処理が完了しました。</p>
-            </div>
-        </div>
-
-        <!-- 120個拡張機能: リアルタイム取引ログとシステムコントロール -->
-        <div style="margin-top: 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); padding-top: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.75rem; color: var(--text-sub);">アクティビティログ・取引履歴</span>
-                <span style="font-size: 0.7rem; color: var(--danger-color); cursor: pointer;" onclick="clearHistory()">消去</span>
-            </div>
-            <div class="history-list" id="historyList">
-                <div class="history-item"><span>システム起動</span><span>OK</span></div>
-            </div>
-        </div>
+  <div class="container">
+    <div class="video-wrapper">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
     </div>
-</div>
 
-<script>
-    // 120機能制御用モジュール＆定数
-    const ID_PREFIX = "tong-p2p-";
+    <div class="controls">
+      <input type="text" id="userName" placeholder="登録する名前を入力">
+      <button id="btnRegister" disabled>顔を登録</button>
+      <button id="btnClear" class="btn-clear">データを消去</button>
+    </div>
 
-    let peer = null;
-    let conn = null;
-    let myRole = ""; // "iphone" | "reader" | "guide"
-    let myShortId = "";
-    let currentPrice = "0";
-    let setPasswordValue = "";
-    let scannedCardId = "";
+    <div class="status-panel">
+      <p>ステータス: <span id="log">モデルを読み込んでいます...</span></p>
+      <p>登録済みユーザー:</p>
+      <ul id="userList" class="user-list"></ul>
+    </div>
+  </div>
 
-    // Web Audio API サウンドシステム
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playBeep(freq = 880, type = 'sine', duration = 0.15) {
-        try {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        } catch(e) {}
+  <script>
+    const STORAGE_KEY = 'face_auth_users_data';
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const userNameInput = document.getElementById('userName');
+    const btnRegister = document.getElementById('btnRegister');
+    const btnClear = document.getElementById('btnClear');
+    const logText = document.getElementById('log');
+    const userList = document.getElementById('userList');
+
+    let registeredFaces = []; // { name: string, descriptor: Float32Array }
+    let currentDescriptor = null;
+    let isModelsLoaded = false;
+
+    // 1. 初期化：モデルの読み込み & カメラ起動
+    async function init() {
+      try {
+        logText.textContent = 'AIモデルを読み込んでいます...';
+        
+        // vladmandicの軽量モデルをCDNからロード
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+
+        isModelsLoaded = true;
+        logText.textContent = 'カメラを起動しています...';
+
+        // カメラ映像の取得
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+
+        // ローカルストレージから既存データを読み込み
+        loadRegisteredFaces();
+        updateUserListUI();
+
+        logText.textContent = '準備完了（顔を画面に向けてください）';
+        btnRegister.disabled = false;
+
+      } catch (err) {
+        console.error(err);
+        logText.textContent = 'エラーが発生しました: ' + err.message;
+      }
     }
 
-    // NFC制御用
-    let nfcNDEFReader = null;
-    let nfcAbortController = null;
+    // 2. カメラ映像からの顔検出ループ
+    video.addEventListener('play', () => {
+      const displaySize = { width: video.clientWidth, height: video.clientHeight };
+      faceapi.matchDimensions(overlay, displaySize);
 
-    document.addEventListener("DOMContentLoaded", () => {
-        checkSystemDiagnostics();
-        setupBatteryMonitoring();
+      setInterval(async () => {
+        if (!isModelsLoaded) return;
+
+        // 顔検出・ランドマーク抽出・特徴量(128次元ベクトル)取得
+        const detection = await faceapi.detectSingleFace(video)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        const ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+        if (detection) {
+          const resizedDetection = faceapi.resizeResults(detection, displaySize);
+          currentDescriptor = detection.descriptor;
+
+          let label = '未登録の人物';
+
+          // 登録されたデータと照合
+          if (registeredFaces.length > 0) {
+            const faceMatcher = new faceapi.FaceMatcher(
+              registeredFaces.map(f => new faceapi.LabeledFaceDescriptors(f.name, [f.descriptor])),
+              0.55 // 判定しきい値 (数値が小さいほど厳密)
+            );
+            const match = faceMatcher.findBestMatch(detection.descriptor);
+            
+            if (match.label !== 'unknown') {
+              label = `認証成功: ${match.label} (${Math.round((1 - match.distance) * 100)}%)`;
+            } else {
+              label = '未登録の顔';
+            }
+          }
+
+          // 枠線とラベルの描画
+          const box = resizedDetection.detection.box;
+          const drawBox = new faceapi.draw.DrawBox(box, { label: label });
+          drawBox.draw(overlay);
+
+          logText.textContent = label;
+        } else {
+          currentDescriptor = null;
+          logText.textContent = '顔が検出されません';
+        }
+      }, 200);
     });
 
-    function checkSystemDiagnostics() {
-        const nfcSupported = ('NDEFReader' in window);
-        document.getElementById("diagNfc").textContent = nfcSupported ? "利用可能" : "非対応";
-        document.getElementById("diagNfc").style.color = nfcSupported ? "var(--success-color)" : "var(--text-sub)";
-        addHistory("診断実行: NFC=" + (nfcSupported ? "対応" : "未対応"));
+    // 3. 顔データの登録処理
+    btnRegister.addEventListener('click', () => {
+      const name = userNameInput.value.trim();
+      if (!name) {
+        alert('名前を入力してください。');
+        return;
+      }
+      if (!currentDescriptor) {
+        alert('顔が検出されていません。カメラに顔をしっかり向けてください。');
+        return;
+      }
+
+      // 特徴量（Float32Array）を通常の配列に変換して保存用に整形
+      const descriptorArray = Array.from(currentDescriptor);
+      
+      registeredFaces.push({
+        name: name,
+        descriptor: currentDescriptor
+      });
+
+      saveRegisteredFaces();
+      updateUserListUI();
+
+      userNameInput.value = '';
+      alert(`「${name}」さんの顔情報を登録しました！`);
+    });
+
+    // 4. ローカルストレージ保存・読み込み機能
+    function saveRegisteredFaces() {
+      // Float32Arrayを通常のArrayにしてJSON化
+      const serializableData = registeredFaces.map(f => ({
+        name: f.name,
+        descriptor: Array.from(f.descriptor)
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializableData));
     }
 
-    function setupBatteryMonitoring() {
-        if ('getBattery' in navigator) {
-            navigator.getBattery().then(battery => {
-                const update = () => {
-                    const level = Math.round(battery.level * 100);
-                    document.getElementById("batteryStatus").textContent = `🔋 ${level}%`;
-                };
-                update();
-                battery.addEventListener('levelchange', update);
-            });
-        }
+    function loadRegisteredFaces() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (!data) return;
+
+      try {
+        const parsed = JSON.parse(data);
+        registeredFaces = parsed.map(f => ({
+          name: f.name,
+          descriptor: new Float32Array(f.descriptor) // JSONからFloat32Arrayに復元
+        }));
+      } catch (e) {
+        console.error('データの読み込みに失敗しました:', e);
+      }
     }
 
-    function showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-        const target = document.getElementById(screenId);
-        if (target) target.classList.add('active');
+    // 5. データ消去
+    btnClear.addEventListener('click', () => {
+      if (confirm('登録されているすべての顔データを消去しますか？')) {
+        localStorage.removeItem(STORAGE_KEY);
+        registeredFaces = [];
+        updateUserListUI();
+        alert('データを消去しました。');
+      }
+    });
+
+    // 6. UI表示更新
+    function updateUserListUI() {
+      userList.innerHTML = '';
+      if (registeredFaces.length === 0) {
+        userList.innerHTML = '<li style="color:#888;">なし</li>';
+        return;
+      }
+      registeredFaces.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'user-chip';
+        li.textContent = f.name;
+        userList.appendChild(li);
+      });
     }
 
-    function notify(msg) {
-        const el = document.getElementById("notification");
-        el.textContent = msg;
-        el.style.display = "block";
-        playBeep(1200, 'triangle', 0.1);
-        setTimeout(() => { el.style.display = "none"; }, 3500);
-    }
-
-    function addHistory(text) {
-        const list = document.getElementById("historyList");
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const item = document.createElement("div");
-        item.className = "history-item";
-        item.innerHTML = `<span>${text}</span><span style="color:var(--text-sub);">${time}</span>`;
-        list.prepend(item);
-    }
-
-    function clearHistory() {
-        document.getElementById("historyList").innerHTML = "";
-    }
-
-    // 1. 役割選択
-    function selectRole(role) {
-        myRole = role;
-        initPeerJS();
-        showScreen("screenPairing");
-        addHistory("役割設定: " + role);
-    }
-
-    // 2. PeerJS 短縮ID (4桁) 通信機能
-    function initPeerJS() {
-        myShortId = Math.floor(1000 + Math.random() * 9000).toString();
-        const fullPeerId = ID_PREFIX + myShortId;
-
-        peer = new Peer(fullPeerId);
-
-        peer.on('open', (id) => {
-            document.getElementById("myPeerIdDisplay").textContent = myShortId;
-            document.getElementById("diagPeer").textContent = "ID発行済";
-            updateP2PStatus(false);
-        });
-
-        peer.on('error', (err) => {
-            if (err.type === 'unavailable-id') {
-                initPeerJS();
-            } else {
-                notify("P2Pエラー: " + err.type);
-            }
-        });
-
-        peer.on('connection', (c) => {
-            conn = c;
-            setupP2PConnectionHandlers();
-            notify("P2P接続を受信・確立しました");
-        });
-    }
-
-    function regeneratePeerId() {
-        if (peer) peer.destroy();
-        initPeerJS();
-    }
-
-    function connectToRemotePeer() {
-        const inputCode = document.getElementById("remotePeerIdInput").value.trim();
-        if (!inputCode) {
-            notify("4桁ペアリング番号を入力してください");
-            return;
-        }
-
-        const targetFullId = ID_PREFIX + inputCode;
-        notify("番号 " + inputCode + " へ接続中...");
-        conn = peer.connect(targetFullId);
-        setupP2PConnectionHandlers();
-    }
-
-    function setupP2PConnectionHandlers() {
-        conn.on('open', () => {
-            updateP2PStatus(true);
-            notify("P2P接続成功！");
-            playBeep(1760, 'sine', 0.2);
-            addHistory("P2P通信確立");
-
-            if (myRole === "iphone") {
-                showScreen("screenIphoneKeypad");
-            } else if (myRole === "reader") {
-                showScreen("screenNfcReader");
-                startNfcReaderMode();
-            } else if (myRole === "guide") {
-                showScreen("screenGuideNotice");
-            }
-        });
-
-        conn.on('data', (data) => {
-            handleIncomingP2PData(data);
-        });
-
-        conn.on('close', () => {
-            updateP2PStatus(false);
-            notify("P2P接続が切断されました");
-            addHistory("P2P切断");
-        });
-    }
-
-    function updateP2PStatus(isConnected) {
-        const tag = document.getElementById("p2pStatusTag");
-        if (isConnected) {
-            tag.innerHTML = '<span class="status-dot"></span>オンライン';
-            tag.classList.add("online");
-        } else {
-            tag.innerHTML = '<span class="status-dot"></span>オフライン';
-            tag.classList.remove("online");
-        }
-    }
-
-    function sendP2PData(data) {
-        if (conn && conn.open) {
-            conn.send(data);
-        }
-    }
-
-    // 3. P2Pメッセージ受配信制御
-    function handleIncomingP2PData(data) {
-        if (data.type === "PAYMENT_INFO") {
-            currentPrice = data.price;
-            setPasswordValue = data.password;
-
-            if (myRole === "guide") {
-                document.getElementById("noticePriceDisplay").textContent = "¥" + Number(currentPrice).toLocaleString();
-                showScreen("screenGuideNotice");
-
-                // 音声読み上げ拡張
-                if (document.getElementById("voiceToggle").checked && 'speechSynthesis' in window) {
-                    const uttr = new SpeechSynthesisUtterance(`${currentPrice}円です。カードをかざしてください。`);
-                    uttr.lang = 'ja-JP';
-                    window.speechSynthesis.speak(uttr);
-                }
-            }
-            addHistory(`価格受領: ¥${currentPrice}`);
-        } else if (data.type === "NFC_SCANNED") {
-            scannedCardId = data.cardId;
-            if (myRole === "guide") {
-                document.getElementById("cardTypeTag").textContent = "カードID: " + scannedCardId;
-                notify("カードを検出しました。パスワードを入力してください。");
-                showScreen("screenPasswordInput");
-            }
-            addHistory("NFC検出受信: " + scannedCardId);
-        } else if (data.type === "PAYMENT_SUCCESS") {
-            document.getElementById("successDetail").textContent = `金額 ¥${Number(data.price).toLocaleString()} の決済が完了しました。`;
-            showScreen("screenSuccess");
-            playBeep(2093, 'sine', 0.4);
-            addHistory(`決済成功: ¥${data.price}`);
-
-            setTimeout(() => {
-                resetToRoleHome();
-            }, 4500);
-        }
-    }
-
-    // 4. iPhone（決済登録端末）金額・パスワード設定＆送信
-    function setQuickAmount(amt) {
-        currentPrice = amt.toString();
-        document.getElementById("priceDisplay").textContent = "¥" + Number(currentPrice).toLocaleString();
-        playBeep(600, 'sine', 0.05);
-    }
-
-    function generateRandomPassword() {
-        const randPass = Math.floor(1000 + Math.random() * 9000).toString();
-        document.getElementById("setAuthPasswordInput").value = randPass;
-        notify("自動パスワード設定: " + randPass);
-    }
-
-    function appendKey(val) {
-        playBeep(800, 'sine', 0.05);
-        if (currentPrice === "0") {
-            currentPrice = val === "00" ? "0" : val;
-        } else {
-            if (currentPrice.length < 8) {
-                currentPrice += val;
-            }
-        }
-        document.getElementById("priceDisplay").textContent = "¥" + Number(currentPrice).toLocaleString();
-    }
-
-    function clearKey() {
-        playBeep(400, 'sine', 0.08);
-        currentPrice = "0";
-        document.getElementById("priceDisplay").textContent = "¥0";
-    }
-
-    function submitPaymentRequest() {
-        const pwd = document.getElementById("setAuthPasswordInput").value.trim();
-        if (currentPrice === "0") {
-            notify("金額を入力してください");
-            return;
-        }
-        if (!pwd) {
-            notify("認証用パスワードを設定してください");
-            return;
-        }
-
-        setPasswordValue = pwd;
-
-        sendP2PData({
-            type: "PAYMENT_INFO",
-            price: currentPrice,
-            password: setPasswordValue
-        });
-
-        notify("案内端末へ価格情報を送信しました");
-    }
-
-    // 5. Android (読み取り専用機) Web NFC機能
-    async function startNfcReaderMode() {
-        if (!('NDEFReader' in window)) {
-            document.getElementById("nfcReaderStatus").textContent = "【非対応環境】ここをタップしてカード模擬スキャン";
-            document.getElementById("screenNfcReader").onclick = () => {
-                const simulatedId = "NFC-" + Math.floor(Math.random() * 89999 + 10000);
-                sendP2PData({ type: "NFC_SCANNED", cardId: simulatedId });
-                playBeep(1500, 'sine', 0.15);
-                notify("模擬カードの読み取りを同期しました");
-            };
-            return;
-        }
-
-        try {
-            nfcAbortController = new AbortController();
-            nfcNDEFReader = new NDEFReader();
-
-            await nfcNDEFReader.scan({ signal: nfcAbortController.signal });
-            document.getElementById("nfcReaderStatus").textContent = "NFCカードのタッチを待機中...";
-
-            nfcNDEFReader.addEventListener("reading", ({ serialNumber }) => {
-                const cardId = serialNumber || ("TAG-" + Math.floor(Math.random() * 8999 + 1000));
-                sendP2PData({ type: "NFC_SCANNED", cardId: cardId });
-                playBeep(1760, 'sine', 0.2);
-                notify("NFCカードを検出し送信しました");
-            });
-
-        } catch (error) {
-            console.error("NFC Error:", error);
-            document.getElementById("nfcReaderStatus").textContent = "NFCエラー: " + error.message;
-        }
-    }
-
-    // 6. 非対応端末（案内・入力機）パスワード照合
-    function verifyPassword() {
-        const inputPwd = document.getElementById("inputAuthPassword").value.trim();
-        if (!inputPwd) {
-            notify("パスワードを入力してください");
-            return;
-        }
-
-        if (inputPwd === setPasswordValue) {
-            document.getElementById("successDetail").textContent = `金額 ¥${Number(currentPrice).toLocaleString()} の決済が完了しました。`;
-            showScreen("screenSuccess");
-            playBeep(2093, 'sine', 0.4);
-
-            sendP2PData({
-                type: "PAYMENT_SUCCESS",
-                price: currentPrice
-            });
-
-            setTimeout(() => {
-                resetToRoleHome();
-            }, 4500);
-        } else {
-            notify("パスワードが一致しません");
-            playBeep(300, 'sawtooth', 0.3);
-            document.getElementById("inputAuthPassword").value = "";
-        }
-    }
-
-    // 7. 初期化・リセット
-    function resetToRoleHome() {
-        currentPrice = "0";
-        document.getElementById("priceDisplay").textContent = "¥0";
-        document.getElementById("inputAuthPassword").value = "";
-
-        if (myRole === "iphone") {
-            showScreen("screenIphoneKeypad");
-        } else if (myRole === "reader") {
-            showScreen("screenNfcReader");
-        } else if (myRole === "guide") {
-            document.getElementById("noticePriceDisplay").textContent = "¥0";
-            showScreen("screenGuideNotice");
-        }
-    }
-</script>
-
+    // 起動
+    init();
+  </script>
 </body>
 </html>
